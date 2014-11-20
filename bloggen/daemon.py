@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import os
 import sys
 import logging
 from datetime import datetime
@@ -26,7 +25,7 @@ class FileChangeEventHandler(pyinotify.ProcessEvent):
 
     def _handler(self, event):
         pathname = event.pathname
-        isdir = os.path.isdir(pathname)
+        # isdir = os.path.isdir(pathname)
         if event.dir:
             logging.info(
                 '{0} dir:{1} at:{2}'.format(
@@ -36,7 +35,7 @@ class FileChangeEventHandler(pyinotify.ProcessEvent):
         else:
             logging.info('{0} file:{1} at:{2}'.format(
                 event.maskname, pathname, datetime.now()))
-            # shell.main() if filechanges.rebuild it.
+            shell.main()
 
 
 def notify(path_to_watch, rec=False):

@@ -7,4 +7,4 @@ highlight this code use pygments
 
 A test file end in here.
 
-this is very cool for this daemon 
+测试文章。世界你好。

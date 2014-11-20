@@ -6,7 +6,7 @@ a test script file.
 """
 
 import sys
-import server
+
 import generate
 
 reload(sys)
@@ -31,7 +31,7 @@ def main():
     postgen.generate_articles('../gui/markdown')
     articles = postgen.get_all_articles()
     pagegen = generate.PageGenerate(render_path, page_dest_path, global_data)
-    pagegen.generate_pages(articles,1) # one artilce per pages
+    pagegen.generate_pages(articles, 15)
     print 'generate ok..'
 if __name__ == '__main__':
     main()

@@ -5,7 +5,6 @@ import os
 import datetime
 
 import jinja2
-import pygments
 import markdown
 
 import model
