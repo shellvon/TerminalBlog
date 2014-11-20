@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="content">
+	<main class="container">
+		<div class="row-fluid">
+			<section class="content">
+				<h1>{{blog.name}}</h1>
+			</section>
+			<ul class="entries">
+				{% for post in page.posts %}
+				<li>
+					<a href="{{root}}/{{post.url}}">
+					<span>{{post.time}}</span>
+					<h3>{{post.title}}</h3>
+					<div>{{post.content|striptags|truncate(120,True)}}</div>
+					</a>
+				</li>
+				{% endfor %}
+			</ul>
+		</div>
+		<hr>
+		<div id="post-paginations">
+			{% if page.page_number!=1 %}
+			<p class="prev">
+				{% if page.page_number==2 %}
+				<a href="{{root}}">Previous</a>
+				{% else %}
+				<a href="{{root}}/page/{{page.page_number-1}}.html">Previous</a>
+				{% endif %}
+			</p>
+			{% endif %}
+			<ul class="pages">
+				<li class="page">
+					<span class="current-page">Page {{page.page_number}} of {{page.total_page}}</span>
+				</li>
+			</ul>
+			{% if page.page_number!=page.total_page %}
+			<p class="next">
+				<a href="{{root}}/page/{{page.page_number+1}}.html">Next</a>
+			</p>
+			{% endif %}
+		</div>
+	</main>
+</div>
+{% endblock %}

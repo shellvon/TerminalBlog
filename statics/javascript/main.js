@@ -29,7 +29,7 @@ var helpPage = [
     '%c(@white)很高兴你能来到这个站点。该站点使用Norbert Landsteiner开发的termlib.js%c(@green)<%+ahttp://www.masswerk.at%-a>%c构建。',
     '该博客的目的我也不知是啥，不要指望在这里获取到什么有营养的东西。很感谢你的拜访.',
     '',
-    '目前该博客支持一下类unix的命令:',
+    '目前该博客支持以下类unix的命令:',
     '   %c(@chartreuse)help%c(@darkgray)   .  .  .  .  .  .  .  %c(@beige)输出此帮助信息。',
     '   %c(@chartreuse)cat  <file>%c(@darkgray)  .  .  .  .  .  %c(@beige)让您阅览此博客发布的文章',
     '   %c(@chartreuse)more <file>%c(@darkgray)  .  .  .  .  .  %c(@beige)让您阅览此博客发布的文章,参见cat.',
@@ -39,7 +39,7 @@ var helpPage = [
     '   %c(@chartreuse)clear%c(@darkgray)  .  .  .  .  .  .  .  %c(@beige)清空屏幕',
     '   %c(@chartreuse)history%c(@darkgray).  .  .  .  .  .  .  %c(@beige)历史记录',
     '   %c(@chartreuse)startx%c(@darkgray) .  .  .  .  .  .  .  %c(@beige)图形博客界面',
-    '   %c(@chartreuse)invaders%c(@darkgray)  .  .  .  .  .  .  %c(@beige)see %c(@green)<%+ahttp://www.masswerk.at/termlib/sample_invaders.html%-a>%c',
+    '   %c(@chartreuse)invaders%c(@darkgray)  .  .  .  .  .  .  %c(@beige)see %c(@green)<%+ahttp://www.masswerk.at/termlib/sample_invaders.html%-a>.',
     '',
     ''
 ];
@@ -49,9 +49,10 @@ var blogInfo = [
     '',
     '* For more usage you can the the command  %c(@chartreuse)help%c in this terminal',
     '',
-    '',
     'Last login: ' + new Date() + ' from ' + ip,
+    '',
 ];
+var command = ['help','cat','more','ls','info','resume','clear','history','startx','invaders'];
 
 function getBrowserWidth () {
     if (window.innerWidth) {
@@ -99,7 +100,6 @@ function resizeTerm (t) {
 function termInitHandler () {
     resizeTerm(this);
     this.write(blogInfo);
-    //this.write('%n');
     this.write(greeting);
     this.newLine();
     this.prompt();
@@ -140,7 +140,7 @@ function termCommandHandler () {
         }else if(cmd=='date'){
             this.write(config+Date());
         }else if(cmd=='startx'){
-            window.location = '/gui/index.html';
+            window.location = 'gui/index.html';
         }else if(cmd=='invaders'){
             invadersGameCommand(term);
         }else{
@@ -286,7 +286,55 @@ function historyCommand (term) {
 }
 
 function tabComplete (term) {
-    //TODO
+    var line = term._getLine();
+    var args = line.split(' ');
+    var cmd = args[0];
+    var argv = '';
+    var tmplist = [];
+    var iscmd =true;
+    for (var i = command.length - 1; i >= 0; i--) {
+        if(command[i].indexOf(cmd)===0){
+            tmplist.push(command[i]);
+        }
+    }
+    if (args.length==1){//command.
+        iscmd = true;
+    }else{//filename.
+        if(tmplist.length==0){//wrong command
+        }else{
+            //get the last argument
+            argv = args.pop();
+            iscmd = false;
+            tmplist = [];//just get the args.igore the command.
+            for (var i = filenames.length - 1; i >= 0; i--) {
+                if(filenames[i].indexOf(argv)===0){
+                    tmplist.push(filenames[i]);
+                }
+            }
+        }
+    }
+    console.log('tmplist:',tmplist);
+    var offset = 0;
+    if(iscmd){
+        offset = cmd.length;
+    }else{
+        offset = argv.length;
+    }
+    if(tmplist.length==1){ 
+        term.type(tmplist[0].slice(offset));
+    }else if(tmplist.length>1){
+        //newline
+        term.charMode = true;
+        term.lock=true;
+        term.cursorOff();
+        term.newLine();
+        list(term,tmplist);
+        term.lock = false;
+        term.charMode = false;
+        term.prompt();
+        term.type(line);
+        term.cursorOn();
+    }
 }
 
 /**

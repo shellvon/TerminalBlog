@@ -13,13 +13,14 @@ INFO = """
 
 
 def generate(fpath):
-	# ignore the .git folders.
+    # ignore the .git folders.
     maps = {f: os.path.join(os.path.relpath(roots), f) for roots, dirs, files in
-    	os.walk(fpath)for f in files
-    		if not os.path.join(os.path.relpath(roots), f).startswith('.git')
-    	}
+            os.walk(fpath)for f in files
+            if not os.path.join(os.path.relpath(roots), f).startswith('.git')
+            }
     fname_lst = maps.keys()
-    content = 'var filenames = {0};\nvar fname_tree = {1};'.format(fname_lst, maps)
+    content = 'var filenames = {0};\nvar fname_tree = {1};'.format(
+        fname_lst, maps)
     with open('statics/javascript/files_map.js', 'wb') as f:
         f.write(INFO)
         f.write(content)

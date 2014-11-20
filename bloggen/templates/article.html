@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+<!--<link rel="stylesheet" href="https://rawgit.com/richleland/pygments-css/master/vim.css">
+-->
+{% block content %}
+<main class="content">
+	<section class="container">
+		<div class="row-fluid">
+			<article class="home-icon">
+				<a href="{{root}}"><i class="icon-home"></i></a>
+			</article>
+			<article class="post">
+				<h5>{{article.time}}</h5>
+				<h2>{{article.title}}</h2>
+				<section>
+					{{article.content}}
+					<hr>
+				</section>
+				<section style="font-weight: bold;margin-bottom: 2em;">
+					{% if article.prev %}
+					<a rel="prev" href="{{root}}/{{article.prev.url}}" class="prev a-hover"><i class="icon-double-angle-left"></i>{{article.prev.title}}</a>
+					{% endif %}
+					{% if article.next %}
+					<a rel="next" href="{{root}}/{{article.next.url}}" class="next a-hover" style="float:right"><i class="icon-double-angle-right"></i>{{article.next.title}}</a>
+					{% endif %}
+				</section>
+				<section>
+					<div class="ds-thread" data-thread-key="{{article.time}}" data-title="{{article.title}}" data-url="{{article.url}}"></div>
+				</section>
+			</article>
+		</div>
+	</section>
+</main>
+
+<script type="text/javascript">
+	var duoshuoQuery = {short_name:"terminalblog"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+</script>
+{% endblock%}
