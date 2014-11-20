@@ -33,26 +33,27 @@ var helpPage = [
     '   %c(@chartreuse)help%c(@darkgray)   .  .  .  .  .  .  .  %c(@beige)输出此帮助信息。',
     '   %c(@chartreuse)cat  <file>%c(@darkgray)  .  .  .  .  .  %c(@beige)让您阅览此博客发布的文章',
     '   %c(@chartreuse)more <file>%c(@darkgray)  .  .  .  .  .  %c(@beige)让您阅览此博客发布的文章,参见cat.',
-    '   %c(@chartreuse)ls%c(@darkgray)     .  .  .  .  .  .  .  %c(@beige)列出当前已经发布的文章名字',
+    '   %c(@chartreuse)ls  [-l]%c(@darkgray)     .  .  .  .  .  %c(@beige)列出当前已经发布的文章名字',
     '   %c(@chartreuse)info%c(@darkgray)   .  .  .  .  .  .  .  %c(@beige)关于站点和作者',
     '   %c(@chartreuse)resume%c(@darkgray) .  .  .  .  .  .  .  %c(@beige)作者简历',
     '   %c(@chartreuse)clear%c(@darkgray)  .  .  .  .  .  .  .  %c(@beige)清空屏幕',
     '   %c(@chartreuse)history%c(@darkgray).  .  .  .  .  .  .  %c(@beige)历史记录',
     '   %c(@chartreuse)startx%c(@darkgray) .  .  .  .  .  .  .  %c(@beige)图形博客界面',
+    '   %c(@chartreuse)reboot%c(@darkgray) .  .  .  .  .  .  .  %c(@beige)重启terminal【没思路】，实际作用是reload this page',
     '   %c(@chartreuse)invaders%c(@darkgray)  .  .  .  .  .  .  %c(@beige)see %c(@green)<%+ahttp://www.masswerk.at/termlib/sample_invaders.html%-a>.',
     '',
     ''
 ];
-var ip = 'localhost';
+var ip = 'localhost';//TODO: get the ip by jsonp.
 var blogInfo = [
     'Welcome to my blog.My name is shellvon.',
     '',
-    '* For more usage you can the the command  %c(@chartreuse)help%c in this terminal',
+    '* For more usage you can use the command  %c(@chartreuse)help%c in this terminal',
     '',
     'Last login: ' + new Date() + ' from ' + ip,
     '',
 ];
-var command = ['help','cat','more','ls','info','resume','clear','history','startx','invaders'];
+var command = ['help','cat','more','ls','info','resume','clear','history','startx','reboot','invaders'];
 
 function getBrowserWidth () {
     if (window.innerWidth) {
@@ -107,6 +108,7 @@ function termInitHandler () {
 
 function termControlHandler () {
     if (this.inputChar==9){
+        //TODO:some bug need to be fixed
         tabComplete(this);
     }
 }
@@ -141,6 +143,9 @@ function termCommandHandler () {
             this.write(config+Date());
         }else if(cmd=='startx'){
             window.location = 'gui/index.html';
+        }else if(cmd=='reboot'){
+            rebootCommand(term);
+            return;//no need to prompt
         }else if(cmd=='invaders'){
             invadersGameCommand(term);
         }else{
@@ -274,6 +279,7 @@ function clearCommand (term) {
 }
 
 function resumeCommand (term) {
+    var config = '%c(@lightgrey)';
     if(term.argv.length!=1){
         term.write(config+'usage: resume');
     }
@@ -431,4 +437,8 @@ function showContentWithMore (content) {
 }
 function getFullPath (filename){
     return fname_tree[filename]
+}
+
+function rebootCommand (term) {
+    location.reload();//TODO:reboot this terminal
 }
