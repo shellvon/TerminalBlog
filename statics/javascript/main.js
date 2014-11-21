@@ -442,3 +442,11 @@ function getFullPath (filename){
 function rebootCommand (term) {
     location.reload();//TODO:reboot this terminal
 }
+
+/**
+ * 屏蔽鼠标右键~
+ */
+document.oncontextmenu=new Function("event.returnValue=false;");
+document.onselectstart=new Function("event.returnValue=false;");
+
+console.log('按照同学建议，禁用了鼠标右键，你可以使用f12看。')
