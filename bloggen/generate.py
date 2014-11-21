@@ -3,12 +3,13 @@
 import codecs
 import os
 import datetime
+import time
 
 import jinja2
 import markdown
 
 import model
-
+import persistence
 
 class Renderer(object):
 
@@ -101,7 +102,12 @@ class ArticleGenerate(Generate):
         files = [os.path.join(self.source_path, f) for f in os.listdir(
             self.source_path) if f.endswith('.md')]
         # http://stackoverflow.com/questions/237079/how-to-get-file-creation-modification-date-times-in-python
-        files.sort(key=lambda filename: os.path.getctime(filename), reverse=True)
+        # it's better to use basename:
+        # make sure that same key in windows and linux
+        maps = {os.path.basename(f):os.path.getctime(f) for f in files}
+        persistence.persistence(maps, flag=True)
+        func = lambda f:persistence.get(f, default=os.path.getctime(f))
+        files.sort(key=func, reverse=True)
         articles = []
         for f in files:
             article = model.Article(*self._get_by_names(f))
@@ -116,7 +122,8 @@ class ArticleGenerate(Generate):
 
     def _get_by_names(self, fullname):
         name = os.path.basename(fullname)
-        ts = os.path.getctime(fullname)  # the timestamp
+        # see get_all_aritcles() explain why use basename 
+        ts = persistence.get(name, default=time.time())
         create_time = datetime.datetime.fromtimestamp(
             ts).strftime('%Y-%m-%d %H:%M')
         with codecs.open(fullname, 'rb', 'utf8') as f:
