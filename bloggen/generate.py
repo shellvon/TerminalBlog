@@ -101,7 +101,7 @@ class ArticleGenerate(Generate):
         files = [os.path.join(self.source_path, f) for f in os.listdir(
             self.source_path) if f.endswith('.md')]
         # http://stackoverflow.com/questions/237079/how-to-get-file-creation-modification-date-times-in-python
-        files.sort(key=lambda filename: os.path.getctime(filename))
+        files.sort(key=lambda filename: os.path.getctime(filename), reverse=True)
         articles = []
         for f in files:
             article = model.Article(*self._get_by_names(f))
