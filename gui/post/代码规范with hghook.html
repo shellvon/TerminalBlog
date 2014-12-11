@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<link rel="icon" href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA30lEQVQ4jc2TQQqDMBBFf0IPYdciqCC4sdtepmfoIXqSXqPbgiCYRS4geAj9000TolVL200DHxIm8yYznwA/LgUAVVUdReSilDq4gIisiuR9GIaztfa2e96/KqUil7gFIAkROWitrwD2DhC9q7oAiQBg90HVlzMAaJdIEiRR17XfO4XxUBOAU1mWaJpmMWEO9ID5haIo0LbtW8hkBmFvxhjkeQ6SsNZ6z+M4nrzWA8IhGWOQZZkHJkmyOtxFQJqmmw7MARoAxnHstnpdURe6cCLZb1k2c6Anefri6/zjegA6Y8N7iQVuMQAAAABJRU5ErkJggg==">
+	<meta name="description" content="">
+	<link rel="stylesheet" type="text/css" href="/TerminalBlog/gui/static/css/style.css">
+	<title>von's blog</title>
+</head>
+<body>
+<div class="top-strip"></div>
+
+<main class="content">
+	<section class="container">
+		<div class="row-fluid">
+			<article class="home-icon">
+				<a href="/TerminalBlog/gui"><i class="icon-home"></i></a>
+			</article>
+			<article class="post">
+				<h5>2014-12-11 19:41</h5>
+				<h2>代码规范with hghook</h2>
+				<section>
+					<p>我的代码风格被吐槽不只一次了，至于多差可以参考<a href="https://github.com/shellvon?tab=repositories">我的github</a>,我平时写代码的习惯一览无余.</p>
+<p>记得在大约一个月以前，我参加知道创宇面试-&gt;面试官最后给我的评价其中之一就是我的代码规范问题。面试官提示我的另外一个问题是我的心浮气躁，我一直在尽力去改.</p>
+<p>恩，此处演示如何在hg中添加代码规范检测的hook.
+因为项目使用的PHP,所以规范检测自然用的是PHPCS。</p>
+<h6>1.进入项目根目录,并执行添加hook的脚本.</h6>
+<div class="codehilite"><pre><span class="c">#!/usr/bin/env bash</span>
+<span class="nv">BASEDIR</span><span class="o">=</span><span class="k">$(</span>dirname <span class="nv">$0</span><span class="k">)</span>
+<span class="nv">hgrcfile</span><span class="o">=</span><span class="s2">&quot;.hg/hgrc&quot;</span>
+<span class="nv">hookstr</span><span class="o">=</span><span class="s2">&quot;[hooks]&quot;</span>
+<span class="nv">precommitstr</span><span class="o">=</span><span class="s2">&quot;precommit.phpcs = $BASEDIR/pre-commit&quot;</span>
+
+cp -n <span class="nv">$hgrcfile</span> <span class="nv">$hgrcfile</span>.org
+<span class="k">if </span>grep <span class="s1">&#39;hooks&#39;</span> <span class="nv">$hgrcfile</span> --quiet; <span class="k">then</span>
+<span class="k">    if </span>grep <span class="s1">&#39;precommit.phpcs&#39;</span> <span class="nv">$hgrcfile</span> --quiet; <span class="k">then</span>
+        <span class="s2">&quot;$BASEDIR&quot;</span>/remove-hook.sh
+    <span class="k">fi</span>
+<span class="k">    </span>sed -i s!<span class="s1">&#39;^\[hooks\]&#39;</span>!<span class="s1">&#39;[hooks]\n&#39;</span><span class="s2">&quot;$precommitstr&quot;</span>! <span class="nv">$hgrcfile</span>
+<span class="k">else</span>
+<span class="k">    </span><span class="nb">echo</span> <span class="s2">&quot;&quot;</span> &gt;&gt; <span class="nv">$hgrcfile</span>
+    <span class="nb">echo</span> <span class="nv">$hookstr</span> &gt;&gt; <span class="nv">$hgrcfile</span>
+    <span class="nb">echo</span> <span class="nv">$precommitstr</span> &gt;&gt; <span class="nv">$hgrcfile</span>
+<span class="k">fi</span>
+</pre></div>
+
+
+<h6>2.检查配置是否正确</h6>
+<div class="codehilite"><pre><span class="c">#grep &#39;precommit.phpcs&#39;  path/to/.hgrc</span>
+</pre></div>
+
+
+<p>以上shell脚本是为其添加hook，事件是precommit,需要调用的脚本名字是pre-commit,下面是precommit的源代码</p>
+<div class="codehilite"><pre><span class="c">#!/bin/bash</span>
+<span class="nb">set</span> -f
+<span class="nv">commitFiles</span><span class="o">=</span><span class="sb">`</span>hg status -nam<span class="sb">`</span>
+<span class="nv">args</span><span class="o">=</span><span class="s1">&#39;-n -p -s&#39;</span>
+<span class="nv">phpFiles</span><span class="o">=</span><span class="s2">&quot;&quot;</span>;
+<span class="nv">phpFilesCount</span><span class="o">=</span>0;
+<span class="o">[</span> -f .hgignore <span class="o">]</span> <span class="o">&amp;&amp;</span> <span class="nv">ignoreFile</span><span class="o">=</span><span class="s2">&quot;`tr &#39;\n&#39; &#39;,&#39; &lt; .hgignore |sed &#39;s/,$//g&#39;`&quot;</span>
+<span class="k">for </span>f in <span class="nv">$commitFiles</span>; <span class="k">do</span>
+<span class="k">    if</span> <span class="o">[[</span> ! -e <span class="nv">$f</span> <span class="o">]]</span>; <span class="k">then</span>
+<span class="k">        continue</span>;
+    <span class="k">fi</span>
+<span class="k">    if</span> <span class="o">[[</span> <span class="nv">$f</span> <span class="o">==</span> *.php <span class="o">]]</span>; <span class="k">then</span>
+<span class="k">        </span><span class="nv">phpFilesCount</span><span class="o">=</span><span class="k">$((</span>phpFilesCount+1<span class="k">))</span>
+        <span class="nv">phpFiles</span><span class="o">=</span><span class="s2">&quot;$phpFiles $f&quot;</span>
+    <span class="k">fi</span>
+<span class="k">done</span>;
+<span class="k">if</span> <span class="o">[[</span> <span class="nv">$phpFilesCount</span> -eq 0 <span class="o">]]</span>; <span class="k">then</span>
+<span class="k">    </span><span class="nb">exit </span>0;
+<span class="k">fi</span>
+<span class="k">if</span> <span class="o">[[</span> <span class="nv">$phpFilesCount</span> &gt; 2 <span class="o">]]</span>; <span class="k">then</span>
+<span class="k">    </span><span class="nv">args</span><span class="o">=</span><span class="s2">&quot;$args --report=summary&quot;</span>
+<span class="k">fi</span>
+<span class="nv">ignoreFile</span><span class="o">=</span><span class="s2">&quot;$ignoreFile&quot;</span>
+<span class="o">[</span> -n <span class="nv">$ignoreFile</span> <span class="o">]</span> <span class="o">&amp;&amp;</span> <span class="nv">args</span><span class="o">=</span><span class="sb">`</span><span class="nb">echo</span> <span class="s2">&quot;${args} --ignore=&#39;${ignoreFile}&#39;&quot;</span><span class="sb">`</span>
+<span class="nb">eval </span>phpcs <span class="nv">$args</span> <span class="nv">$phpFiles</span>
+</pre></div>
+
+
+<p>如果shell脚本看不懂，可以看这里=&gt;<a href="http://mercurial.selenic.com/wiki/HookExamples">参考文档</a>
+使用Python编写：</p>
+<div class="codehilite"><pre><span class="c">#coding: utf8</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">platform</span>
+
+<span class="k">def</span> <span class="nf">phpcs</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="n">hooktype</span><span class="p">,</span> <span class="n">node</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="s">&#39;hg status -n&#39;</span>
+    <span class="n">stFileList</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+    <span class="n">stFileCount</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">popen</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span><span class="o">.</span><span class="n">readlines</span><span class="p">():</span>
+        <span class="n">itemList</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">itemList</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">itemList</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;php&#39;</span> <span class="p">:</span>
+            <span class="k">if</span> <span class="n">stFileCount</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span>
+                <span class="n">stFileList</span> <span class="o">=</span> <span class="n">item</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="n">stFileList</span> <span class="o">=</span> <span class="n">stFileList</span> <span class="o">+</span> <span class="s">&quot; &quot;</span> <span class="o">+</span> <span class="n">item</span>
+            <span class="n">stFileCount</span> <span class="o">=</span> <span class="n">stFileCount</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">stFileCount</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="p">:</span>
+        <span class="n">argsPHPCS</span> <span class="o">=</span> <span class="s">&quot;&quot;</span>
+        <span class="n">cmdPHPCS</span> <span class="o">=</span> <span class="s">&quot;phpcs </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">argsPHPCS</span> <span class="p">,</span> <span class="n">stFileList</span><span class="p">)</span>
+        <span class="n">errorMsg</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">popen</span><span class="p">(</span><span class="n">cmdPHPCS</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">errorMsg</span> <span class="o">!=</span> <span class="s">&#39;&#39;</span><span class="p">:</span>
+            <span class="n">ui</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">errorMsg</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">True</span>        
+    <span class="k">return</span> <span class="bp">False</span>
+</pre></div>
+
+
+<p>使用git的请<a href="http://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks">参考这里</a>.</p>
+<p>测试文章结束。。</p>
+					<hr>
+				</section>
+				<section style="font-weight: bold;margin-bottom: 2em;">
+					
+					
+					<a rel="next" href="/TerminalBlog/gui/post/穷.html" class="next a-hover" style="float:right"><i class="icon-double-angle-right"></i>穷</a>
+					
+				</section>
+				<section>
+					<div class="ds-thread" data-thread-key="2014-12-11 19:41" data-title="代码规范with hghook" data-url="post/代码规范with hghook.html"></div>
+				</section>
+			</article>
+		</div>
+	</section>
+</main>
+
+<script type="text/javascript">
+	var duoshuoQuery = {short_name:"terminalblog"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+</script>
+
+<footer>
+	<div class="container">
+		<a href="#">shellvon</a>|<a href="/TerminalBlog">Terminal</a>|<a href="http://richbray.me/frap/">Thanks richbray.me/frap</a>
+	</div>
+</footer>
+<script type="text/javascript" src="http://tajs.qq.com/stats?sId=38629263" charset="UTF-8"></script>
+</body>
+</html>
