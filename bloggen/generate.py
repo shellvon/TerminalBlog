@@ -11,6 +11,7 @@ import markdown
 import model
 import persistence
 
+
 class Renderer(object):
 
     """docstring for Renderer"""
@@ -104,9 +105,9 @@ class ArticleGenerate(Generate):
         # http://stackoverflow.com/questions/237079/how-to-get-file-creation-modification-date-times-in-python
         # it's better to use basename:
         # make sure that same key in windows and linux
-        maps = {os.path.basename(f):os.path.getctime(f) for f in files}
+        maps = {os.path.basename(f): os.path.getctime(f) for f in files}
         persistence.persistence(maps, flag=True)
-        func = lambda f:persistence.get(f, default=os.path.getctime(f))
+        func = lambda f: persistence.get(f, default=os.path.getctime(f))
         files.sort(key=func, reverse=True)
         articles = []
         for f in files:
@@ -122,7 +123,7 @@ class ArticleGenerate(Generate):
 
     def _get_by_names(self, fullname):
         name = os.path.basename(fullname)
-        # see get_all_aritcles() explain why use basename 
+        # see get_all_aritcles() explain why use basename
         ts = persistence.get(name, default=time.time())
         create_time = datetime.datetime.fromtimestamp(
             ts).strftime('%Y-%m-%d %H:%M')
