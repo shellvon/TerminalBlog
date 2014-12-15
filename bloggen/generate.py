@@ -93,14 +93,17 @@ class ArticleGenerate(Generate):
     def generate_articles(self, source_path):
         self.source_path = source_path
         self.markdown = MarkdownParser()
-        articles = self.get_all_articles()
+        self.articles = self._init_articles()
         parent_path = os.path.abspath(os.path.join(source_path, os.pardir))
-        for article in articles:
+        for article in self.articles:
             self.generate_to(os.path.join(parent_path, 'post', ''.join(
                 [article.title, '.html'])), 'article.html',
                 article=article, **self.global_data)
 
     def get_all_articles(self):
+        return self.articles
+
+    def _init_articles(self):
         files = [os.path.join(self.source_path, f) for f in os.listdir(
             self.source_path) if f.endswith('.md')]
         # http://stackoverflow.com/questions/237079/how-to-get-file-creation-modification-date-times-in-python
@@ -108,7 +111,7 @@ class ArticleGenerate(Generate):
         # make sure that same key in windows and linux
         maps = {os.path.basename(f): os.path.getctime(f) for f in files}
         persistence.persistence(maps, flag=True)
-        func = lambda f: persistence.get(f, default=os.path.getctime(f))
+        func = lambda f: persistence.get(os.path.basename(f), default=os.path.getctime(f))
         files.sort(key=func, reverse=True)
         articles = []
         for f in files:

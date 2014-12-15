@@ -14,7 +14,7 @@ def persistence(maps, flag=True):
     db = shelve.open(DATA_FILE, 'c')
     if flag:
         for k in maps:
-            if k not in maps:
+            if k not in db:
                 db[k] = maps[k]
     else:
         for k in maps:

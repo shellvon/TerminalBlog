@@ -45,3 +45,4 @@ if __name__ == '__main__':
         exit()
     generate('gui/markdown')
     shell.main('gui', 'bloggen/templates')
+
