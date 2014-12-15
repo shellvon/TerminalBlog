@@ -29,6 +29,8 @@ var helpPage = [
     '%c(@white)很高兴你能来到这个站点。该站点使用Norbert Landsteiner开发的termlib.js%c(@green)<%+ahttp://www.masswerk.at%-a>%c构建。',
     '该博客的目的我也不知是啥，不要指望在这里获取到什么有营养的东西。很感谢你的拜访.',
     '',
+    '          %c(02)因为不支持中文输入，所以查看文章需要使用startx进入gui的blog看%c(0)',
+    '',
     '目前该博客支持以下类unix的命令:',
     '   %c(@chartreuse)help%c(@darkgray)   .  .  .  .  .  .  .  %c(@beige)输出此帮助信息。',
     '   %c(@chartreuse)cat  <file>%c(@darkgray)  .  .  .  .  .  %c(@beige)让您阅览此博客发布的文章',
@@ -283,8 +285,8 @@ function resumeCommand (term) {
     if(term.argv.length!=1){
         term.write(config+'usage: resume');
     }
-    term.write(config+' resume: Not Implements yet. i am sorry.');
-    //window.location="gui/resume.html";
+    //term.write(config+' resume: Not Implements yet. i am sorry.');
+    window.location="gui/resume.html";
 }
 
 function historyCommand (term) {
@@ -446,7 +448,8 @@ function rebootCommand (term) {
 /**
  * 屏蔽鼠标右键~
  */
+/*
 document.oncontextmenu=new Function("event.returnValue=false;");
 document.onselectstart=new Function("event.returnValue=false;");
-
 console.log('按照同学建议，禁用了鼠标右键，你可以使用f12看。')
+*/

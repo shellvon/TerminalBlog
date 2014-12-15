@@ -69,14 +69,15 @@ class PageGenerate(Generate):
                  for i, page in enumerate(page_group, start=1)]
         if not pages:
             return None
+        parent_path = os.path.abspath(os.path.join(self.dest_path, os.pardir))
         self.generate_to(
-            '../gui/index.html',
+            '{0}'.format(os.path.join(parent_path, 'index.html')),
             'page.html',
             page=pages[0],
             **self.global_data)
         for i in xrange(1, total_page):
             self.generate_to(
-                '../gui/page/{0}.html'.format(i + 1),
+                '{0}/{1}.html'.format(self.dest_path, i + 1),
                 'page.html',
                 page=pages[i],
                 **self.global_data)

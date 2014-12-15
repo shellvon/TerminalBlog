@@ -17,10 +17,10 @@
 				</section>
 				<section style="font-weight: bold;margin-bottom: 2em;">
 					{% if article.prev %}
-					<a rel="prev" href="{{root}}/{{article.prev.url}}" class="prev a-hover"><i class="icon-double-angle-left"></i>{{article.prev.title}}</a>
+					<a rel="prev" href="{{root}}/{{article.prev.url}}" class="a-hover"><i class="icon-double-angle-left"></i>{{article.prev.title}}</a>
 					{% endif %}
 					{% if article.next %}
-					<a rel="next" href="{{root}}/{{article.next.url}}" class="next a-hover" style="float:right"><i class="icon-double-angle-right"></i>{{article.next.title}}</a>
+					<a rel="next" href="{{root}}/{{article.next.url}}" class="a-hover" style="float:right">{{article.next.title}}<i class="icon-double-angle-right"></i></a>
 					{% endif %}
 				</section>
 				<section>

@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
+import os
 import shelve
 
-DATA_FILE = "blogen.dat"
-
+CUR_DIR_NAME = os.path.dirname(os.path.realpath(__file__))
+DATA_FILE = os.path.join(CUR_DIR_NAME, "blogen.dat")
 
 def persistence(maps, flag=True):
     """
