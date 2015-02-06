@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<link rel="icon" href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA30lEQVQ4jc2TQQqDMBBFf0IPYdciqCC4sdtepmfoIXqSXqPbgiCYRS4geAj9000TolVL200DHxIm8yYznwA/LgUAVVUdReSilDq4gIisiuR9GIaztfa2e96/KqUil7gFIAkROWitrwD2DhC9q7oAiQBg90HVlzMAaJdIEiRR17XfO4XxUBOAU1mWaJpmMWEO9ID5haIo0LbtW8hkBmFvxhjkeQ6SsNZ6z+M4nrzWA8IhGWOQZZkHJkmyOtxFQJqmmw7MARoAxnHstnpdURe6cCLZb1k2c6Anefri6/zjegA6Y8N7iQVuMQAAAABJRU5ErkJggg==">
+	<meta name="description" content="">
+	<link rel="stylesheet" type="text/css" href="/TerminalBlog/gui/static/css/style.css">
+	<title>von's blog</title>
+</head>
+<body>
+<div class="top-strip"></div>
+
+<main class="content">
+	<section class="container">
+		<div class="row-fluid">
+			<article class="home-icon">
+				<a href="/TerminalBlog/gui"><i class="icon-home"></i></a>
+			</article>
+			<article class="post">
+				<h5>2015-02-06 17:38</h5>
+				<h2>sad PHP story</h2>
+				<section>
+					<p>最近做公司某个ticket的时候涉及到一个小需求，天真的我写的代码去实现了<a href="http://php.net/manual/en/class.arrayaccess.php">ArrayAccess </a>，以为这样我就可以使用PHP中像<code>array_key_exists</code>这样的函数，
+结果写了半天，发现始终打开方式不对.......</p>
+<p>后来，在<a href="http://phpsadness.com/sad/8">这里</a>看到了一个忧伤的故事～</p>
+<blockquote>
+<p>Some array functions, like array_key_exists, simply don't work when used on a class which implements all the right interfaces to behave as an array.</p>
+</blockquote>
+<p>简单的代码样例子就用他的吧：</p>
+<div class="codehilite"><pre><span class="cp">&lt;?php</span>
+<span class="k">class</span> <span class="nc">X</span> <span class="k">implements</span> <span class="nx">ArrayAccess</span> <span class="p">{</span>
+    <span class="k">function</span> <span class="nf">offsetGet</span><span class="p">(</span><span class="nv">$key</span><span class="p">){}</span>
+    <span class="k">function</span> <span class="nf">offsetSet</span><span class="p">(</span><span class="nv">$key</span><span class="p">,</span><span class="nv">$value</span><span class="p">){}</span>
+    <span class="k">function</span> <span class="nf">offsetExists</span><span class="p">(</span><span class="nv">$key</span><span class="p">){</span><span class="k">return</span> <span class="k">true</span><span class="p">;}</span>
+    <span class="k">function</span> <span class="nf">offsetUnset</span><span class="p">(</span><span class="nv">$key</span><span class="p">){}</span>
+<span class="p">}</span>
+<span class="nv">$x</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">X</span><span class="p">();</span>
+<span class="nb">var_dump</span><span class="p">(</span><span class="nb">array_key_exists</span><span class="p">(</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="nv">$x</span><span class="p">));</span>  <span class="c1">// outputs bool(false)</span>
+</pre></div>
+
+
+<p>唉。。我顺便看了一下<a href="http://phpsadness.com/">这个网站</a>的其他Sad Story,发现确实有些sad.</p>
+					<hr>
+				</section>
+				<section style="font-weight: bold;margin-bottom: 2em;">
+					
+					
+					<a rel="next" href="/TerminalBlog/gui/post/现状.html" class="a-hover" style="float:right">现状<i class="icon-double-angle-right"></i></a>
+					
+				</section>
+				<section>
+					<div class="ds-thread" data-thread-key="2015-02-06 17:38" data-title="sad PHP story" data-url="post/sad PHP story.html"></div>
+				</section>
+			</article>
+		</div>
+	</section>
+</main>
+
+<script type="text/javascript">
+	var duoshuoQuery = {short_name:"terminalblog"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+</script>
+
+<footer>
+	<div class="container">
+		<a href="#">shellvon</a>|<a href="/TerminalBlog">Terminal</a>|<a href="http://richbray.me/frap/">Thanks richbray.me/frap</a>
+	</div>
+</footer>
+<script type="text/javascript" src="http://tajs.qq.com/stats?sId=38629263" charset="UTF-8"></script>
+</body>
+</html>

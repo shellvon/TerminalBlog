@@ -39,10 +39,13 @@ def generate(fpath):
 
 if __name__ == '__main__':
     try:
-        from bloggen import shell
+        from bloggen import shell,server
     except Exception, e:
         print e
         exit()
     generate('gui/markdown')
     shell.main('gui', 'bloggen/templates')
-
+    # changedir 
+    os.chdir(os.pardir)
+    serv = server.SimpleServer()
+    serv.start()
