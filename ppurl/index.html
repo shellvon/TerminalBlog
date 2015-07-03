@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>book-find</title>
+	<link rel="stylesheet" type="text/css" href="http://cdn.datatables.net/1.10.7/css/jquery.dataTables.css">
+	<link rel="icon" href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA30lEQVQ4jc2TQQqDMBBFf0IPYdciqCC4sdtepmfoIXqSXqPbgiCYRS4geAj9000TolVL200DHxIm8yYznwA/LgUAVVUdReSilDq4gIisiuR9GIaztfa2e96/KqUil7gFIAkROWitrwD2DhC9q7oAiQBg90HVlzMAaJdIEiRR17XfO4XxUBOAU1mWaJpmMWEO9ID5haIo0LbtW8hkBmFvxhjkeQ6SsNZ6z+M4nrzWA8IhGWOQZZkHJkmyOtxFQJqmmw7MARoAxnHstnpdURe6cCLZb1k2c6Anefri6/zjegA6Y8N7iQVuMQAAAABJRU5ErkJggg==">
+	<script type="text/javascript" src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="http://cdn.datatables.net/1.10.7/js/jquery.dataTables.min.js"></script>
+
+	<style type="text/css">
+	.container{
+		margin: 0 25%;
+	}
+	#ebook td{
+		max-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	#ebook td:first-child{
+		width: 30%;
+	}
+	#ebook td:nth-child(2){
+		width: 70%;
+	}
+	article>h2{
+		font-family: Georgia,"Times New Roman",Times,serif;
+		font-size: 2.5em;
+		
+		letter-spacing: 0.05em;
+		text-align: center;
+	}
+	.paragraph_title{
+		font-style: 1.5em;
+	}
+	section p{
+		font-family: 'Noto Serif';
+		line-height: 1.9em;
+	}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<article><h2>皮皮书屋电子书</h2></article>
+		<section>
+			<h3 class="paragraph_title">说明</h3>
+			<p>这里提供的书籍下载均来自于网友爬取自原来的皮皮书屋, 原文件是一个仅包含下载链接的excel文件(原始excel文件<a href="http://pan.baidu.com/s/1pJ5NZB1">这里</a>可以找到)，因为ed2k文件里面可以直接通过URL解码方式得到文件名，所以我只是整理了一下方便小白用户查找而已。希望可以有帮助。</p>
+			<p>转化所需要的<a href="https://github.com/shellvon/TerminalBlog/blob/gh-pages/convert.py">代码这里</a>可以找到:https://github.com/shellvon/TerminalBlog/blob/gh-pages/convert.py</p>
+			<p>本页面由jQuery插件<a href="http://datatables.net/">datatable</a>实现。</p>
+			<p>意见或者建议可以在下面评论区域告诉我,或者可以去看看<a href="http://shellvon.github.io/TerminalBlog/">我的博客</a>^_^。</p>
+		</section>
+		<br>
+		<table id="ebook" class="display" cellspacing="0" width="100%">
+			<thead>
+				<tr>
+					<th>书籍名字</th>
+					<th>下载地址</th>
+				</tr>
+			</thead>
+		</table>
+		<section>
+			<div class="ds-thread" data-thread-key="ppurl_download" data-title="皮皮书屋电子书" data-url="ppurl/index.html"></div>
+		</section>
+	</div>
+</body>
+<script type="text/javascript">
+	var duoshuoQuery = {short_name:"terminalblog"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+</script>
+<script type="text/javascript">
+	$(document).ready(function() {
+		$('#ebook').dataTable( {
+			"ajax":'ebook.txt',
+			"pagingType": "full_numbers",
+			"language":{
+				"url":"//cdn.datatables.net/plug-ins/1.10.7/i18n/Chinese.json",
+			}
+		} );
+	} );
+</script>
+</html>
