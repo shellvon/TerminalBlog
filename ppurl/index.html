@@ -179,7 +179,6 @@
 	}
 })(jQuery);
 	$(document).ready(function() {
-		var first = true;
 		var table = $('#ebook').dataTable( {
 			"ajax":'ebook.txt',
 			"pagingType": "full_numbers",
@@ -192,11 +191,7 @@
 				var bookname = $('td:first-child', this).text();
 				$(this).attr('title', bookname);
 			} );
-			if(first){
-				//第一次加载进来有一个loading的tr,他不应该含有tooltips
-				first = false;
-				return;
-			}
+			$('.tooltip').remove();
 			$('#ebook tbody tr').tooltips();
 		} );
 	} );
