@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<link rel="icon" href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA30lEQVQ4jc2TQQqDMBBFf0IPYdciqCC4sdtepmfoIXqSXqPbgiCYRS4geAj9000TolVL200DHxIm8yYznwA/LgUAVVUdReSilDq4gIisiuR9GIaztfa2e96/KqUil7gFIAkROWitrwD2DhC9q7oAiQBg90HVlzMAaJdIEiRR17XfO4XxUBOAU1mWaJpmMWEO9ID5haIo0LbtW8hkBmFvxhjkeQ6SsNZ6z+M4nrzWA8IhGWOQZZkHJkmyOtxFQJqmmw7MARoAxnHstnpdURe6cCLZb1k2c6Anefri6/zjegA6Y8N7iQVuMQAAAABJRU5ErkJggg==">
+	<meta name="description" content="">
+	<link rel="stylesheet" type="text/css" href="/TerminalBlog/gui/static/css/style.css">
+	<title>von's blog</title>
+</head>
+<body>
+<div class="top-strip"></div>
+
+<main class="content">
+	<section class="container">
+		<div class="row-fluid">
+			<article class="home-icon">
+				<a href="/TerminalBlog/gui"><i class="icon-home"></i></a>
+			</article>
+			<article class="post">
+				<h5>2016-03-02 16:20</h5>
+				<h2>I like Evil</h2>
+				<section>
+					<h3>前言</h3>
+<p>由于带着对Web安全对兴趣，前几天和网友们一起参加SSCTF玩, 显然我负责Web。
+初步看了一下题，第一题得考上传，第二道是XSS:<a href="http://960a23aa.seclover.com/index.php">题目链接</a>，第三道是SQLinject.
+XSS居然过滤那么多标签和关键字，SQLinject发现DB是NoSQL中的mongodb.
+然后从来没参加这种比赛的我蒙蔽了,当时大概是这样的：</p>
+<p><img alt="聊天记录截图" src="../static/img/mb.jpg" /></p>
+<p>好吧，我不会。
+然后我转去解Crypto的题的时候，这时候队友给了我一个链接：</p>
+<p><a href="https://www.92aq.com/2016/01/28/angularjs.html">不需要html标签的XSS</a></p>
+<p>卧槽，如获至宝呀！涨知识了。</p>
+<h3>1.模版注入</h3>
+<hr />
+<p>先快速浏览了一下这篇文章，发现题目中和这个没啥区别，就是多过滤了点关键字呗，比如<code>on</code>替换成空了，试了一下<code>oonn</code>,哈哈,Get It！</p>
+<p>然后简单构造:</p>
+<div class="codehilite"><pre><span class="p">{{</span><span class="s">&#39;a&#39;</span><span class="o">.</span><span class="n">coonnstructor</span><span class="o">.</span><span class="nb">prototype</span><span class="o">.</span><span class="n">charAt</span><span class="o">=[].</span><span class="nb">join</span><span class="p">;</span>       <span class="nv">$evevalal</span><span class="p">(</span><span class="s">&#39;x=alalertert(1)&#39;</span><span class="p">);}}</span>
+</pre></div>
+
+
+<p>于是成功了：</p>
+<p><img alt="XSS" src="../static/img/xss.jpg" /></p>
+<p>当然，我是来学习的，怎么能止步不前呢，于是我继续Google这方面的资料，发现这方面的东西真多：</p>
+<ul>
+<li>比如这篇文章：</li>
+</ul>
+<blockquote>
+<p><a href="http://blog.portswigger.net/2015/08/server-side-template-injection.html">Server-side-template-injection</a></p>
+</blockquote>
+<p>其PDF可以在这里发现:<a href="https://www.blackhat.com/docs/us-15/materials/us-15-Kettle-Server-Side-Template-Injection-RCE-For-The-Modern-Web-App-wp.pdf">Kettle-Server-Side-Template-Injection-RCE-For-The-Modern-Web-App-wp.pdf</a></p>
+<ul>
+<li><a href="http://www.freebuf.com/articles/system/97146.html">利用 Python 特性在 Jinja2 模板中执行任意代码</a></li>
+</ul>
+<p>以上满满地都是干货。 </p>
+<h3>2.Python的decode/encode</h3>
+<hr />
+<p>这是这次比赛获得到的第二个技能点</p>
+<p>比赛结束之时，队友在群里问：</p>
+<blockquote>
+<p>Happy(***)  14:37:52</p>
+<p>//three encryption</p>
+<p>code="K0FDTUFRQUIrQUY0QVJBQkJBRUVBUVFCQkFFRUFQUUE5QUZZQWZ3QllBR0FBVXdBckFEZ0FiUUFoQUhNQVl3QXBBR2NBWndCUkFFRUFRUUJCQUQwQVBRQmVBQ01BZmdCQS0="
+第一次看出是base64，之后还有两次看不出来了</p>
+<p>求大牛help</p>
+<p>老虎&lt;***>  14:48:29</p>
+<p>你什么都试试呗</p>
+<p>&lt;***>  14:50:03</p>
+<p>base64-->utf7-->vbscript.encode</p>
+</blockquote>
+<p>然后关于UTF7我也恰好是看了的，只是最后一部不知道（^_^现在知道了）
+我之所以提到Python的内置函数我才发现<code>encode</code>和<code>decode</code>是如此的牛逼：</p>
+<div class="codehilite"><pre><span class="n">In</span> <span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="n">code</span><span class="o">=</span><span class="s">&quot;K0FDTUFRQUIrQUY0QVJBQkJBRUVBUVFCQkFFRUFQUUE5QUZZQWZ3QllBR0FBVXdBckFEZ0FiUUFoQUhNQVl3QXBBR2NBWndCUkFFRUFRUUJCQUQwQVBRQmVBQ01BZmdCQS0=&quot;</span>
+
+<span class="n">In</span> <span class="p">[</span><span class="mi">2</span><span class="p">]:</span> <span class="n">code</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;base64&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;utf7&#39;</span><span class="p">)</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span> <span class="n">u</span><span class="s">&#39;#@~^DAAAAA==V\x7fX`S+8m!sc)ggQAAA==^#~@&#39;</span>
+</pre></div>
+
+
+<p>枉费我用了那么久的的<code>encode/decode</code>,但是从来没想到可以直接<code>decode/encode</code>比如向<code>base64</code> /<code>zip</code>这样的编码方式！简直跪了！！！
+这里去=&gt;<a href="https://docs.python.org/2.7/library/codecs.html#standard-encodings">了解更多</a></p>
+<p>之前的我只认为编码方式是什么utf7,8,16呀。gbk之类的可以，没想到。。。base64/zip也支持！</p>
+<p>对了，至于说怎么知道是utf7的话，可以参见UTF7的wikipedia,从算法来看，如果一个字符串是中间有什么<code>+</code>或者<code>-</code>的话，可能性就有点高，可以试试用该编码方式哦。</p>
+<h3>3.看文档！！！</h3>
+<hr />
+<p>无论是上面模版注入中的文档和Python官网提到的内容来看，都表示了要熟悉和了解这些漏洞和用法，必须仔细看文档。</p>
+<p>这让我想到了这篇文章：
+<a href="http://0xa.li/php-date-is-xssable/">php-date-is-xssable/</a></p>
+<p>文中多次提到</p>
+<blockquote>
+<p>According to the documentation</p>
+</blockquote>
+<p><strong>爱读文档的孩子真的会有收获的～（虽然脑洞得大）</strong></p>
+<p>这段代码我觉得非常棒～</p>
+<div class="codehilite"><pre><span class="cp">&lt;?php</span>
+<span class="k">echo</span> <span class="nb">date</span><span class="p">(</span><span class="err">‘</span><span class="o">&lt;</span><span class="nx">\i\m\g</span> <span class="nx">\s\r\c</span><span class="o">=</span><span class="nx">x</span> <span class="nx">\o\n\e\r\r\o\r</span><span class="o">=</span><span class="nx">\a\l\e\r\t</span><span class="p">(</span><span class="nx">\</span><span class="err">’</span><span class="nx">X\S\S\</span><span class="err">’</span><span class="p">)</span><span class="nx">\</span><span class="o">&gt;</span><span class="err">’</span><span class="p">);</span>
+</pre></div>
+
+
+<p>说到这里，我吐槽一下前几天写PHP遇见的一个bug，我判断一个整数的时候用的代码如下：</p>
+<div class="codehilite"><pre><span class="cp">&lt;?php</span>
+<span class="nx">filter_var</span><span class="p">(</span><span class="nv">$input</span><span class="p">,</span> <span class="nx">FILTER_VALIDATE_INT</span><span class="p">)</span> <span class="o">!==</span><span class="k">false</span> <span class="p">;</span>
+</pre></div>
+
+
+<p>这个函数在32bit和64bit上效果是不一样的，<code>PHP_INT_MAX</code>范围不一样，整数范围就不同了。官方文旦没有这点，我找了半天才反应过来是这方面的问题～～～
+哦，对了，天真的我在该函数中加入官方文档中提到的第三个可选参数<code>$options</code>以为可以扩大检查范围，实现32bit和64bit机器的一致性。</p>
+<p>比如这样的 ：</p>
+<div class="codehilite"><pre><span class="cp">&lt;?php</span>
+<span class="nx">filter_var</span><span class="p">(</span><span class="nv">$input</span><span class="p">,</span> <span class="nx">FILTER_VALIDATE_INT</span><span class="p">,</span> <span class="k">array</span><span class="p">(</span><span class="s1">&#39;option&#39;</span><span class="err">＝</span><span class="o">&gt;</span><span class="k">array</span><span class="p">(</span><span class="s1">&#39;max_range&#39;</span><span class="o">=&gt;</span><span class="nx">PHP_INT_MAX</span><span class="o">+</span><span class="mi">2</span><span class="p">))))</span> <span class="o">!==</span><span class="k">false</span> <span class="p">;</span>
+</pre></div>
+
+
+<p>结果可想而知，这个max_range会被强制转为int,所以<strong>溢出了</strong>～～</p>
+<p>2333333</p>
+<p>全文结束，感谢阅读。</p>
+					<hr>
+				</section>
+				<section style="font-weight: bold;margin-bottom: 2em;">
+					
+					
+					<a rel="next" href="/TerminalBlog/gui/post/世间慨.html" class="a-hover" style="float:right">世间慨<i class="icon-double-angle-right"></i></a>
+					
+				</section>
+				<section>
+					<div class="ds-thread" data-thread-key="2016-03-02 16:20" data-title="I like Evil" data-url="post/I like Evil.html"></div>
+				</section>
+			</article>
+		</div>
+	</section>
+</main>
+
+<script type="text/javascript">
+	var duoshuoQuery = {short_name:"terminalblog"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+</script>
+
+<footer>
+	<div class="container">
+		<a href="#">shellvon</a>|<a href="/TerminalBlog">Terminal</a>|<a href="http://richbray.me/frap/">Thanks richbray.me/frap</a>
+	</div>
+</footer>
+<script type="text/javascript" src="http://tajs.qq.com/stats?sId=38629263" charset="UTF-8"></script>
+</body>
+</html>
