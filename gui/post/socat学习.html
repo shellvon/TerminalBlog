@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<link rel="icon" href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA30lEQVQ4jc2TQQqDMBBFf0IPYdciqCC4sdtepmfoIXqSXqPbgiCYRS4geAj9000TolVL200DHxIm8yYznwA/LgUAVVUdReSilDq4gIisiuR9GIaztfa2e96/KqUil7gFIAkROWitrwD2DhC9q7oAiQBg90HVlzMAaJdIEiRR17XfO4XxUBOAU1mWaJpmMWEO9ID5haIo0LbtW8hkBmFvxhjkeQ6SsNZ6z+M4nrzWA8IhGWOQZZkHJkmyOtxFQJqmmw7MARoAxnHstnpdURe6cCLZb1k2c6Anefri6/zjegA6Y8N7iQVuMQAAAABJRU5ErkJggg==">
+	<meta name="description" content="">
+	<link rel="stylesheet" type="text/css" href="/TerminalBlog/gui/static/css/style.css">
+	<title>von's blog</title>
+</head>
+<body>
+<div class="top-strip"></div>
+
+<main class="content">
+	<section class="container">
+		<div class="row-fluid">
+			<article class="home-icon">
+				<a href="/TerminalBlog/gui"><i class="icon-home"></i></a>
+			</article>
+			<article class="post">
+				<h5>2016-03-17 17:03</h5>
+				<h2>socat学习</h2>
+				<section>
+					<p>这几天无意发现了一个很好玩的软件叫<code>socat</code>.看了一下手册：</p>
+<div class="codehilite"><pre>    <span class="n">Socat</span>  <span class="n">is</span> <span class="n">a</span> <span class="n">command</span> <span class="n">line</span> <span class="n">based</span> <span class="n">utility</span> <span class="n">that</span> <span class="n">establishes</span> <span class="n">two</span> <span class="n">bidirectional</span> <span class="n">byte</span> <span class="n">streams</span> <span class="ow">and</span> <span class="n">transfers</span> <span class="n">data</span> <span class="n">between</span> <span class="n">them</span><span class="o">.</span> <span class="n">Because</span> <span class="n">the</span> <span class="n">streams</span> <span class="n">can</span>  <span class="n">be</span> <span class="n">constructed</span> <span class="n">from</span> <span class="n">a</span> <span class="n">large</span> <span class="n">set</span> <span class="n">of</span> <span class="n">different</span> <span class="n">types</span> <span class="n">of</span> <span class="n">data</span> <span class="n">sinks</span> <span class="ow">and</span> <span class="n">sources</span> <span class="p">(</span><span class="n">see</span> <span class="n">address</span> <span class="n">types</span><span class="p">),</span> <span class="ow">and</span> <span class="n">because</span> <span class="n">lots</span> <span class="n">of</span> <span class="n">address</span> <span class="n">options</span> <span class="n">may</span>  <span class="n">be</span>  <span class="n">applied</span> <span class="n">to</span> <span class="n">the</span> <span class="n">streams</span><span class="p">,</span> <span class="n">socat</span> <span class="n">can</span> <span class="n">be</span> <span class="n">used</span> <span class="k">for</span> <span class="n">many</span> <span class="n">different</span> <span class="n">purposes</span><span class="o">.</span>
+</pre></div>
+
+
+<p>捉急的翻译是：可以在俩数据流之间建立一个双向通道，它的地址类型因为很多所以很好玩(可以用于不同用途～</p>
+<h3>端口转发</h3>
+<div class="codehilite"><pre>➜  ~ socat TCP-LISTEN:80,fork TCP:localhost:8000
+</pre></div>
+
+
+<p>这样本来原来应该访问8000端口才可以看到的东西，现在访问80也可以看到。</p>
+<h3>传输文件</h3>
+<p>通常我是用的<code>scp/nc</code>之类的命令拷贝的。但是你也可以用这种方式传输</p>
+<div class="codehilite"><pre><span class="o">(</span>hostA<span class="o">)</span>➜  ~ socat TCP4-LISTEN:port OPEN:filename,create,append
+<span class="o">(</span>hostB<span class="o">)</span>➜  ~ cat filename | socat - TCP4:hostA:port
+</pre></div>
+
+
+<p>在<code>hostA</code>上去监听一个tcp端口port,然后<code>hostB</code>中就可以传过去了～～</p>
+<h3>网络程序</h3>
+<p>虽然我不知道是不是应该叫这个名词。</p>
+<div class="codehilite"><pre><span class="o">(</span>hostA<span class="o">)</span>➜  ~ socat tcp-l:1234 <span class="nb">exec</span>:/bin/zsh,pty,stderr
+<span class="o">(</span>hostB<span class="o">)</span>➜  ~ socat readline tcp:hostA:1234
+</pre></div>
+
+
+<p>可以在另外一台电脑<code>hostB</code>上打开<code>hostA</code>的zsh(不知道这算不算反弹Shell),如果觉得TCP不安全，socat也支持<code>openssl</code>呢。</p>
+<div class="codehilite"><pre><span class="o">(</span>hostA<span class="o">)</span>➜ ~ socat openssl-listen:1234,reuseaddr,cert<span class="o">=</span>./serv.pem,cafile<span class="o">=</span>./client.crt EXEC:/bin/zsh
+<span class="o">(</span>hostB<span class="o">)</span>➜ ~ socat - openssl-connect:172.20.80.253:1234,cert<span class="o">=</span>./client.pem,cafile<span class="o">=</span>./serv.crt
+</pre></div>
+
+
+<p>可以执行zsh,当然也可以把任何程序变成一个网络程序来玩～ 比如：</p>
+<div class="codehilite"><pre>socat tcp4-listen:1234,fork EXEC:<span class="s2">&quot;python -u program.py&quot;</span>
+</pre></div>
+
+
+<p>然后可以用电脑连接过去玩这个～</p>
+<h3>结尾</h3>
+<p>我在学习<code>socat</code>的时候看过的一些资料：</p>
+<ul>
+<li><a href="http://www.dest-unreach.org/socat/doc/">http://www.dest-unreach.org/socat/doc/</a></li>
+<li><a href="http://www.volkerschatz.com/net/socatproc.html">http://www.volkerschatz.com/net/socatproc.html</a></li>
+<li><a href="http://www.brodul.org/socat-hack-for-web-developers.html">http://www.brodul.org/socat-hack-for-web-developers.html</a></li>
+<li><a href="http://www.radarhack.com/tutorial/DEFEATING_THE_NETWORK_SECURITY_INFRASTRUCTURE.pdf">http://www.radarhack.com/tutorial/DEFEATING_THE_NETWORK_SECURITY_INFRASTRUCTURE.pdf</a></li>
+<li><a href="https://blog.rootshell.be/2010/10/31/socat-another-network-swiss-army-knife/">https://blog.rootshell.be/2010/10/31/socat-another-network-swiss-army-knife/</a></li>
+<li><a href="https://www.pentestpartners.com/blog/socat-fu-lesson/">https://www.pentestpartners.com/blog/socat-fu-lesson/</a></li>
+<li><a href="https://funoverip.net/2011/01/reverse-ssl-backdoor-with-socat-and-metasploit/">https://funoverip.net/2011/01/reverse-ssl-backdoor-with-socat-and-metasploit/</a></li>
+</ul>
+					<hr>
+				</section>
+				<section style="font-weight: bold;margin-bottom: 2em;">
+					
+					
+					<a rel="next" href="/TerminalBlog/gui/post/I like Evil.html" class="a-hover" style="float:right">I like Evil<i class="icon-double-angle-right"></i></a>
+					
+				</section>
+				<section>
+					<div class="ds-thread" data-thread-key="2016-03-17 17:03" data-title="socat学习" data-url="post/socat学习.html"></div>
+				</section>
+			</article>
+		</div>
+	</section>
+</main>
+
+<script type="text/javascript">
+	var duoshuoQuery = {short_name:"terminalblog"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+</script>
+
+<footer>
+	<div class="container">
+		<a href="#">shellvon</a>|<a href="/TerminalBlog">Terminal</a>|<a href="http://richbray.me/frap/">Thanks richbray.me/frap</a>
+	</div>
+</footer>
+<script type="text/javascript" src="http://tajs.qq.com/stats?sId=38629263" charset="UTF-8"></script>
+</body>
+</html>
