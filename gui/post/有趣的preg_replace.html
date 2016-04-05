@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<link rel="icon" href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA30lEQVQ4jc2TQQqDMBBFf0IPYdciqCC4sdtepmfoIXqSXqPbgiCYRS4geAj9000TolVL200DHxIm8yYznwA/LgUAVVUdReSilDq4gIisiuR9GIaztfa2e96/KqUil7gFIAkROWitrwD2DhC9q7oAiQBg90HVlzMAaJdIEiRR17XfO4XxUBOAU1mWaJpmMWEO9ID5haIo0LbtW8hkBmFvxhjkeQ6SsNZ6z+M4nrzWA8IhGWOQZZkHJkmyOtxFQJqmmw7MARoAxnHstnpdURe6cCLZb1k2c6Anefri6/zjegA6Y8N7iQVuMQAAAABJRU5ErkJggg==">
+	<meta name="description" content="">
+	<link rel="stylesheet" type="text/css" href="/TerminalBlog/gui/static/css/style.css">
+	<title>von's blog</title>
+</head>
+<body>
+<div class="top-strip"></div>
+
+<main class="content">
+	<section class="container">
+		<div class="row-fluid">
+			<article class="home-icon">
+				<a href="/TerminalBlog/gui"><i class="icon-home"></i></a>
+			</article>
+			<article class="post">
+				<h5>2016-04-05 11:20</h5>
+				<h2>有趣的preg_replace</h2>
+				<section>
+					<h3>前言</h3>
+<p>前几天我在给公司做内部项目的接口迁移时发现了某个比较有趣的bug：</p>
+<p>环境:<code>PHP 5.6.19</code>和<code>PHP 5.5.30</code></p>
+<div class="codehilite"><pre><span class="cp">&lt;?php</span>
+<span class="nv">$prejson</span> <span class="o">=</span> <span class="k">function</span><span class="p">(</span><span class="nv">$data</span><span class="p">)</span><span class="k">use</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">$prejson</span><span class="p">,</span> <span class="nv">$en_json</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">is_array</span><span class="p">(</span><span class="nv">$data</span><span class="p">))</span> <span class="p">{</span>
+        <span class="k">foreach</span> <span class="p">(</span><span class="nv">$data</span> <span class="k">as</span> <span class="nv">$k</span><span class="o">=&gt;</span><span class="nv">$r</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nv">$data</span><span class="p">[</span><span class="nv">$k</span><span class="p">]</span> <span class="o">=</span> <span class="nv">$prejson</span><span class="p">(</span><span class="nv">$r</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="nv">$data</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="nv">$str</span> <span class="o">=</span> <span class="nb">preg_replace</span><span class="p">(</span><span class="s2">&quot;/</span><span class="se">\\</span><span class="s2">s/isU&quot;</span><span class="p">,</span><span class="s2">&quot; &quot;</span><span class="p">,</span><span class="nv">$data</span><span class="p">);</span>
+        <span class="nv">$str</span> <span class="o">=</span> <span class="nb">str_replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span><span class="s2">&quot;</span><span class="se">\\\\</span><span class="s2">&quot;</span><span class="p">,</span><span class="nv">$str</span><span class="p">);</span>
+        <span class="nv">$str</span> <span class="o">=</span> <span class="o">!</span><span class="nv">$en_json</span> <span class="o">?</span> <span class="nb">str_replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span><span class="s1">&#39;\&quot;&#39;</span><span class="p">,</span><span class="nv">$str</span><span class="p">)</span> <span class="o">:</span> <span class="nb">urlencode</span><span class="p">(</span><span class="nb">str_replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span><span class="s1">&#39;\&quot;&#39;</span><span class="p">,</span><span class="nv">$str</span><span class="p">));</span>
+        <span class="k">return</span> <span class="nv">$str</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+</pre></div>
+
+
+<h3>Bug及其探究</h3>
+<p>看样子这个PHP的匿名函数主要是做的防止<code>json_encode</code>出来的中文被转义(低版本的<code>json_encode</code>函数不支持<code>JSON_UNESCAPED_UNICODE</code>)。
+但是注意到其中<code>preg_replace</code>这里，有一个很细微的bug,关于<code>preg_replace</code>的。</p>
+<p>如果需要替换的$data中含有某些比较<strong>特殊</strong>的汉字，那么这个转化出来的json可能会出现乱码，比如汉字<code>包</code>。</p>
+<p>以下是测试结果：</p>
+<p><img alt="test_preg_replace.png" src="../static/img/test_preg_replace.png" /></p>
+<p>但是为什么会出现这个结果呢？和我的电脑有关系么？我去了这里做了一下测试：</p>
+<ul>
+<li><a href="https://3v4l.org/SijtS">https://3v4l.org/SijtS</a></li>
+<li><a href="https://3v4l.org/ltHtO">https://3v4l.org/ltHtO</a></li>
+</ul>
+<p>然后我在windows 10 64bit中XAMPP带的PHP执行，同样没有乱码，而且我保证我存的文件都是utf8的，<code>mb_internal_encodig</code>也是utf8.但是眼前的一切真的让我虎躯一震。我的电脑真的乱码了~~难道我电脑坏了，我试过了<code>iconv/mb_convert_encoding</code>都无济于事。心好累。
+后来同学提示说说可不可能replace只替换了汉字包的一部分！！我说怎么可能？\s匹配的是whitespace空格呀，我汉字里面就是unicode编码也不会出现空格吧。</p>
+<p>PHP官方文档上关于<a href="http://php.net/manual/en/regexp.reference.escape.php">转移字符</a>说的是</p>
+<blockquote>
+<p>\s
+  any whitespace character</p>
+</blockquote>
+<p>但是慢着，别慌。谁说whitespace就一定只有空格的呀？<a href="https://www.wikiwand.com/en/Whitespace_character">维基百科</a>里面说的有那么多种！！
+于是我把汉字<code>包</code>给转化成unicode需要显示的字</p>
+<div class="codehilite"><pre><span class="n">encodeURIComponent</span><span class="p">(</span><span class="s">&#39;包&#39;</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="s">&quot;%E5%8C%85&quot;</span>
+</pre></div>
+
+
+<p>然后在维基百科种找到了<code>U+0085</code> =&gt; <code>next line</code>好吧，到这里一切都豁然开朗。</p>
+<p>也就是我给了汉字<code>包</code>过去,对于<code>preg_match/preg_replace</code>这种函数，即使我字符串是utf8的，对于他得到的regex,会给我理解成<code>/[\xE5\x8C\x85]/</code>这种形式。所以\s匹配成功。。。。。</p>
+<p>所以不仅仅是汉字<code>包</code>，其他汉字如果出现了\s中能匹配的Unicode，那么理论上也会被匹配掉呢。</p>
+<p>但是为什么我在3v4l.org上和windows上都没出现乱码呢？我猜测和他们建立的regex不一样（但是不知道为什么会不一样) PHP7不一样估计是原生采用了unicode的方式。</p>
+<h3>解决方法</h3>
+<ol>
+<li>用PHP7吧！</li>
+<li>修改成mb_系列的函数。（和<code>mb_strlen/str_len</code>那种感觉类似）</li>
+<li>加上<code>u</code>这个flag:<a href="http://php.net/manual/en/reference.pcre.pattern.modifiers.php">http://php.net/manual/en/reference.pcre.pattern.modifiers.php</a> (这下面别人的讨论其实就是我这次遇到的bug的解决方案！！！)</li>
+</ol>
+<h3>扩展阅读：</h3>
+<ul>
+<li><a href="http://php.net/manual/en/regexp.reference.escape.php">http://php.net/manual/en/regexp.reference.escape.php</a></li>
+<li><a href="https://www.wikiwand.com/en/Whitespace_character">https://www.wikiwand.com/en/Whitespace_character</a></li>
+<li><a href="http://php.net/manual/en/reference.pcre.pattern.modifiers.php">http://php.net/manual/en/reference.pcre.pattern.modifiers.php</a></li>
+<li><a href="http://gynvael.coldwind.pl/?id=357">PHP preg_match and UTF-8</a></li>
+</ul>
+					<hr>
+				</section>
+				<section style="font-weight: bold;margin-bottom: 2em;">
+					
+					
+					<a rel="next" href="/TerminalBlog/gui/post/socat学习.html" class="a-hover" style="float:right">socat学习<i class="icon-double-angle-right"></i></a>
+					
+				</section>
+				<section>
+					<div class="ds-thread" data-thread-key="2016-04-05 11:20" data-title="有趣的preg_replace" data-url="post/有趣的preg_replace.html"></div>
+				</section>
+			</article>
+		</div>
+	</section>
+</main>
+
+<script type="text/javascript">
+	var duoshuoQuery = {short_name:"terminalblog"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+</script>
+
+<footer>
+	<div class="container">
+		<a href="#">shellvon</a>|<a href="/TerminalBlog">Terminal</a>|<a href="http://richbray.me/frap/">Thanks richbray.me/frap</a>
+	</div>
+</footer>
+<script type="text/javascript" src="http://tajs.qq.com/stats?sId=38629263" charset="UTF-8"></script>
+</body>
+</html>
