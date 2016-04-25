@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<link rel="icon" href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA30lEQVQ4jc2TQQqDMBBFf0IPYdciqCC4sdtepmfoIXqSXqPbgiCYRS4geAj9000TolVL200DHxIm8yYznwA/LgUAVVUdReSilDq4gIisiuR9GIaztfa2e96/KqUil7gFIAkROWitrwD2DhC9q7oAiQBg90HVlzMAaJdIEiRR17XfO4XxUBOAU1mWaJpmMWEO9ID5haIo0LbtW8hkBmFvxhjkeQ6SsNZ6z+M4nrzWA8IhGWOQZZkHJkmyOtxFQJqmmw7MARoAxnHstnpdURe6cCLZb1k2c6Anefri6/zjegA6Y8N7iQVuMQAAAABJRU5ErkJggg==">
+	<meta name="description" content="">
+	<link rel="stylesheet" type="text/css" href="/TerminalBlog/gui/static/css/style.css">
+	<title>von's blog</title>
+</head>
+<body>
+<div class="top-strip"></div>
+
+<main class="content">
+	<section class="container">
+		<div class="row-fluid">
+			<article class="home-icon">
+				<a href="/TerminalBlog/gui"><i class="icon-home"></i></a>
+			</article>
+			<article class="post">
+				<h5>2016-04-25 11:47</h5>
+				<h2>mysql批量修改字段名为小写</h2>
+				<section>
+					<h3>前言</h3>
+<hr />
+<p>前同事的某个项目在把PHP的<code>error_reporting</code>开成E_ALL的时候，发现这种下标未定义的问题。我帮忙看了一下，发现其实是数据库里面有的字段是大写，有的是小写，最开始打算手动改，一看datbase的table我就蒙了，超过了80个表，字段就更多了。</p>
+<h3>基础</h3>
+<hr />
+<ol>
+<li>MySQL(版本大于5.0)/SQLite/Postgres这种数据库会利用<code>information_schema</code>来保存自己的元数据信息。</li>
+<li>Oracle这种数据库没有,但是会有<code>USER_TAB_COLS</code>,<code>ALL_TAB_COLS</code>等。</li>
+<li>修改字段大小写的SQL为:<code>ALTER TABLE tabl_ename CHANGE old_column_name new_column_name type extra, isnullable,charset</code>.(<code>charset_set_name</code>不要的话我在后面测试的时候发现某些中文是无法<code>alter</code>的(UTF8的字节数问题))</li>
+</ol>
+<h3>构造SQL查询</h3>
+<hr />
+<p>首先,为了获取alter需要的数据信息,我们得写如下SQL:</p>
+<div class="codehilite"><pre><span class="k">SELECT</span> <span class="k">column_name</span><span class="p">,</span><span class="n">column_type</span><span class="p">,</span><span class="n">extra</span><span class="p">,</span> <span class="n">is_nullable</span><span class="p">,</span> <span class="k">character_set_name</span> <span class="k">FROM</span> <span class="n">information_schema</span><span class="p">.</span><span class="n">columns</span> <span class="k">WHERE</span> <span class="n">table_schema</span> <span class="o">=</span> <span class="s1">&#39;dbname&#39;</span><span class="p">.</span>
+</pre></div>
+
+
+<p>单独这些信息还不够，我们最好的方式是直接可以用SQL得到最终需要执行的alter语句，然后自动去执行。现在看看，我们发现is_nullable它的值是<code>YES/NO</code>,而在alter中需要<code>NULL/NOT NULL</code>,character_set_name可能为空(比如类型是int的...)，不为空的时候需要使用<code>CHARACTER SET charset_name</code>来执行。
+所以我们需要使用到MySQL的分支语句了(<code>CASE WHEN</code>)。
+现在的SQL大概这样子:</p>
+<div class="codehilite"><pre><span class="k">SELECT</span> <span class="k">column_name</span><span class="p">,</span><span class="n">column_type</span><span class="p">,</span><span class="n">extra</span><span class="p">,</span> <span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">is_nullable</span> <span class="o">=</span> <span class="s1">&#39;YES&#39;</span> <span class="k">THEN</span> <span class="s1">&#39;NULL&#39;</span> <span class="k">ELSE</span> <span class="s1">&#39;NOT NULL&#39;</span> <span class="k">END</span><span class="p">,</span> <span class="k">CASE</span> <span class="k">WHEN</span> <span class="k">character_set_name</span><span class="o">!=</span><span class="s1">&#39;&#39;</span> <span class="k">THEN</span> <span class="n">CONCAT</span><span class="p">(</span><span class="s1">&#39;CHARACTER SET &#39;</span><span class="p">,</span> <span class="k">character_set_name</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span> <span class="k">END</span> <span class="k">FROM</span> <span class="n">information_schema</span><span class="p">.</span><span class="n">columns</span> <span class="k">WHERE</span> <span class="n">table_schema</span> <span class="o">=</span> <span class="s1">&#39;dbname&#39;</span>
+</pre></div>
+
+
+<p>也许你注意到我的<code>CONCAT</code>了，没错，上面的查询结果我还不满意，现在还得利用它继续组装成我最后需要执行的SQL，也就是说，我想查询一列。这一列内容直接包含我最后要执行的SQL，多列变一列当然<code>CONCAT</code>啦！！</p>
+<p>现在希望的形式是(他们之间有空格隔开才可以，得类似于Python中的' '.join(lst))</p>
+<blockquote>
+<p>'ALTER TABLE' + table_name + 'CHANGE' + column_name + new_columname + type + charset + is_nullable</p>
+</blockquote>
+<p>所以最后的现在的SQL像这样子</p>
+<div class="codehilite"><pre><span class="k">SELECT</span>  <span class="n">CONCAT</span><span class="p">(</span><span class="s1">&#39;ALTER TABLE &#39;</span><span class="p">,</span> <span class="k">table_name</span><span class="p">,</span> <span class="s1">&#39; CHANGE &#39;</span><span class="p">,</span> <span class="k">column_name</span><span class="p">,</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="k">LOWER</span><span class="p">(</span><span class="k">column_name</span><span class="p">),</span> <span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">column_type</span><span class="p">,</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="k">CASE</span> <span class="k">WHEN</span> <span class="k">character_set_name</span><span class="o">!=</span><span class="s1">&#39;&#39;</span> <span class="k">THEN</span> <span class="n">CONCAT</span><span class="p">(</span><span class="s1">&#39;CHARACTER SET &#39;</span><span class="p">,</span> <span class="k">character_set_name</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39; &#39;</span> <span class="k">END</span><span class="p">,</span> <span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">is_nullable</span> <span class="o">=</span> <span class="s1">&#39;YES&#39;</span> <span class="k">THEN</span> <span class="s1">&#39; NULL&#39;</span> <span class="k">ELSE</span> <span class="s1">&#39; NOT NULL&#39;</span> <span class="k">END</span><span class="p">,</span> <span class="s1">&#39;;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">new_sql</span> <span class="k">FROM</span> <span class="n">information_schema</span><span class="p">.</span><span class="n">columns</span> <span class="k">WHERE</span> <span class="n">table_schema</span> <span class="o">=</span> <span class="s1">&#39;dbname&#39;</span><span class="p">;</span>
+</pre></div>
+
+
+<p>仔细看看现在生成出来的SQL,似乎有些alter是无用的，因为原来字段本来就是小写。所以可以在where后面多加一个限制：<code>AND column_name != LOWER(column_name)</code>
+现在生成出来的new_sql大概就是这样子：</p>
+<div class="codehilite"><pre><span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">tags</span> <span class="n">CHANGE</span> <span class="n">expiration</span> <span class="n">expiration</span> <span class="nb">int</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="n">unsigned</span>   <span class="k">NOT</span> <span class="k">NULL</span><span class="p">;</span>
+</pre></div>
+
+
+<h3>备份！</h3>
+<p>现在我们可以得到所有需要修改的字段了。要修改之前，为了确保我们的工作无误可回退，所以需要先做一次数据库备份.</p>
+<div class="codehilite"><pre>mysqldump -u root -p dbname &gt; back.sql
+</pre></div>
+
+
+<h3>编写脚本</h3>
+<p>最终查询出来的SQL还需要执行，所以我们得写一个脚本来执行。
+如论用Python/PHP那种语言都可以，我这里是因为对方机器上没有安装Python的MySQL库,所以我修改了代码为PHP来编写。</p>
+<div class="codehilite"><pre><span class="cp">&lt;?php</span>
+<span class="c1">// please run this script after you dumped the database..</span>
+<span class="c1">// command to dumpload =&gt; mysqldump -u root -p fmscms &gt; back.sql</span>
+<span class="c1">// Automatically converted MySQL columns name to lower case.</span>
+<span class="c1">//</span>
+<span class="c1">//</span>
+<span class="k">if</span> <span class="p">(</span><span class="nx">PHP_SAPI</span> <span class="o">!==</span> <span class="s1">&#39;cli&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">exit</span><span class="p">(</span><span class="s1">&#39;This file only supported to run in command line&#39;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// default config.</span>
+<span class="nv">$default_cfg</span> <span class="o">=</span> <span class="k">array</span><span class="p">(</span>
+    <span class="s1">&#39;h&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;P&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;3306&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;u&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;root&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;p&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;charset&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;utf8&#39;</span><span class="p">,</span>
+    <span class="p">);</span>
+
+<span class="c1">// displya usage.</span>
+<span class="k">function</span> <span class="nf">usage</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">echo</span> <span class="s1">&#39;Automatically converted MySQL columns name to lower case&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s1">&#39;Usage:&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> --help show this help message and exit&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s1">&#39;required paramters:&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> --db the database name.&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s1">&#39;optional paramters:&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> -h the host you want to connect.(default is &#39;127.0.0.1&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> -u the username for login the database.(default is &#39;root&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> -p the password for ligin the database.(default is &#39;&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> -P the port number to use for connect the database.(default is &#39;3306&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> --charset the charset.(default is &#39;utf8&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="nx">PHP_EOL</span><span class="o">.</span><span class="s1">&#39;Waring: THIS SCRIPT IS VERY DANGEROUS!!!&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">function</span> <span class="nf">parseConfig</span><span class="p">(</span><span class="nv">$default_cfg</span><span class="p">)</span>
+<span class="p">{</span>
+
+    <span class="c1">// see =&gt; http://php.net/manual/zh/function.getopt.php</span>
+    <span class="nv">$command</span> <span class="o">=</span> <span class="nb">getopt</span><span class="p">(</span><span class="s1">&#39;h:u:p:P:&#39;</span><span class="p">,</span> <span class="k">array</span><span class="p">(</span><span class="s1">&#39;help&#39;</span><span class="p">,</span> <span class="s1">&#39;db:&#39;</span><span class="p">,</span> <span class="s1">&#39;charset:&#39;</span><span class="p">));</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">empty</span><span class="p">(</span><span class="nv">$command</span><span class="p">)</span> <span class="o">||</span> <span class="nb">isset</span><span class="p">(</span><span class="nv">$command</span><span class="p">[</span><span class="s1">&#39;help&#39;</span><span class="p">]))</span> <span class="p">{</span>
+        <span class="nx">usage</span><span class="p">();</span>
+        <span class="k">exit</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nb">isset</span><span class="p">(</span><span class="nv">$command</span><span class="p">[</span><span class="s1">&#39;db&#39;</span><span class="p">]))</span> <span class="p">{</span>
+        <span class="k">exit</span><span class="p">(</span><span class="s1">&#39;the database name is required (use --db to specified)&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="nv">$options</span> <span class="o">=</span> <span class="nb">array_merge</span><span class="p">(</span><span class="nv">$default_cfg</span><span class="p">,</span> <span class="nv">$command</span><span class="p">);</span>
+    <span class="nv">$dsn</span> <span class="o">=</span> <span class="s2">&quot;mysql:host=</span><span class="si">{</span><span class="nv">$options</span><span class="p">[</span><span class="s1">&#39;h&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">;port=</span><span class="si">{</span><span class="nv">$options</span><span class="p">[</span><span class="s1">&#39;P&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">;dbname=</span><span class="si">{</span><span class="nv">$options</span><span class="p">[</span><span class="s1">&#39;db&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">;chaseset=</span><span class="si">{</span><span class="nv">$options</span><span class="p">[</span><span class="s1">&#39;charset&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s1">&#39;use config =&gt; &#39;</span><span class="o">.</span><span class="nv">$dsn</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="o">.</span><span class="s2">&quot;username=</span><span class="si">{</span><span class="nv">$options</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">;password=</span><span class="si">{</span><span class="nv">$options</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+
+    <span class="k">return</span> <span class="k">array</span><span class="p">(</span>
+        <span class="s1">&#39;dsn&#39;</span> <span class="o">=&gt;</span> <span class="nv">$dsn</span><span class="p">,</span>
+        <span class="s1">&#39;username&#39;</span> <span class="o">=&gt;</span> <span class="nv">$options</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;password&#39;</span> <span class="o">=&gt;</span> <span class="nv">$options</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;dbname&#39;</span> <span class="o">=&gt;</span> <span class="nv">$options</span><span class="p">[</span><span class="s1">&#39;db&#39;</span><span class="p">],</span> <span class="c1">// for easy access later.</span>
+        <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">function</span> <span class="nf">getDatabase</span><span class="p">(</span><span class="nv">$dsn</span><span class="p">,</span> <span class="nv">$username</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="nv">$password</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="nv">$options</span> <span class="o">=</span> <span class="k">null</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">empty</span><span class="p">(</span><span class="nv">$options</span><span class="p">))</span> <span class="p">{</span>
+        <span class="nv">$options</span> <span class="o">=</span> <span class="k">array</span><span class="p">(</span>
+            <span class="nx">PDO</span><span class="o">::</span><span class="na">ATTR_ERRMODE</span> <span class="o">=&gt;</span> <span class="nx">PDO</span><span class="o">::</span><span class="na">ERRMODE_EXCEPTION</span><span class="p">,</span>
+            <span class="nx">PDO</span><span class="o">::</span><span class="na">ATTR_DEFAULT_FETCH_MODE</span> <span class="o">=&gt;</span> <span class="nx">PDO</span><span class="o">::</span><span class="na">FETCH_ASSOC</span><span class="p">,</span> <span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="k">new</span> <span class="nx">PDO</span><span class="p">(</span><span class="nv">$dsn</span><span class="p">,</span> <span class="nv">$username</span><span class="p">,</span> <span class="nv">$password</span><span class="p">,</span> <span class="nv">$options</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">function</span> <span class="nf">toLowerCaseColumnName</span><span class="p">(</span><span class="nv">$pdo</span><span class="p">,</span> <span class="nv">$dbname</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// ugly sql.</span>
+    <span class="nv">$result</span> <span class="o">=</span> <span class="nv">$pdo</span><span class="o">-&gt;</span><span class="na">query</span><span class="p">(</span><span class="s2">&quot;SELECT CONCAT(</span>
+<span class="s2">        &#39;ALTER TABLE &#39;, table_name,</span>
+<span class="s2">        &#39; CHANGE &#39;, column_name, &#39; &#39;,</span>
+<span class="s2">        LOWER(column_name), &#39; &#39;, column_type, &#39; &#39;,</span>
+<span class="s2">        CASE when CHARACTER_SET_NAME != &#39;&#39; THEN CONCAT(&#39;CHARACTER SET &#39;, CHARACTER_SET_NAME) else &#39; &#39; END,  &#39; &#39;, extra,</span>
+<span class="s2">        CASE WHEN IS_NULLABLE = &#39;YES&#39; THEN  &#39; NULL&#39; ELSE &#39; NOT NULL&#39; END, &#39;;&#39;) AS new_sql</span>
+<span class="s2">        FROM information_schema.columns</span>
+<span class="s2">        WHERE table_schema = &#39;</span><span class="si">{</span><span class="nv">$dbname</span><span class="si">}</span><span class="s2">&#39;</span>
+<span class="s2">        AND column_name != LOWER(column_name)</span>
+<span class="s2">        AND data_type IN (&#39;char&#39;, &#39;varchar&#39;,&#39;INT&#39;, &#39;TINYINT&#39;, &#39;datetime&#39;,&#39;text&#39;,&#39;double&#39;,&#39;decimal&#39;)</span>
+<span class="s2">        ORDER BY new_sql;&quot;</span><span class="p">);</span>
+    <span class="nv">$sql_lst</span> <span class="o">=</span> <span class="nv">$result</span><span class="o">-&gt;</span><span class="na">fetchAll</span><span class="p">();</span>
+    <span class="nv">$sql_cnt</span> <span class="o">=</span> <span class="nb">count</span><span class="p">(</span><span class="nv">$sql_lst</span><span class="p">);</span>
+    <span class="k">echo</span>   <span class="s1">&#39;Got &#39;</span><span class="o">.</span><span class="nv">$sql_cnt</span><span class="o">.</span><span class="s1">&#39; SQL.&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">while</span> <span class="p">(</span><span class="k">true</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$line</span> <span class="o">=</span> <span class="nb">readline</span><span class="p">(</span><span class="s1">&#39;Do you want to continue, it\&#39;s very dangerous(y/n):&#39;</span><span class="p">);</span>
+        <span class="nv">$line</span> <span class="o">=</span> <span class="nb">strtolower</span><span class="p">(</span><span class="nv">$line</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">in_array</span><span class="p">(</span><span class="nv">$line</span><span class="p">,</span> <span class="k">array</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">)))</span> <span class="p">{</span>
+            <span class="k">break</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">echo</span> <span class="s1">&#39;Wrong input!!! Please choose again!!!&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$line</span> <span class="o">==</span> <span class="s1">&#39;n&#39;</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">echo</span> <span class="s1">&#39;Exit it&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+        <span class="k">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="k">echo</span> <span class="s1">&#39;Keep going...&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="nv">$current</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="nv">$sql_cnt</span> <span class="o">=</span> <span class="nv">$sql_cnt</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="o">?</span> <span class="nv">$sql_cnt</span> <span class="o">:</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="nv">$effects_cnt</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">foreach</span> <span class="p">(</span><span class="nv">$sql_lst</span> <span class="k">as</span> <span class="nv">$row</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$sql</span> <span class="o">=</span> <span class="nv">$row</span><span class="p">[</span><span class="s1">&#39;new_sql&#39;</span><span class="p">];</span>
+        <span class="nv">$count</span> <span class="o">=</span> <span class="nv">$pdo</span><span class="o">-&gt;</span><span class="na">exec</span><span class="p">(</span><span class="nv">$sql</span><span class="p">);</span>
+        <span class="nv">$effects_cnt</span> <span class="o">+=</span> <span class="nv">$count</span><span class="p">;</span>
+        <span class="o">++</span><span class="nv">$current</span><span class="p">;</span>
+        <span class="nv">$percent</span> <span class="o">=</span> <span class="nb">number_format</span><span class="p">(</span><span class="nv">$current</span> <span class="o">*</span> <span class="mf">100.</span> <span class="o">/</span> <span class="nv">$sql_cnt</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">);</span>
+        <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\r</span><span class="s2">Progress =&gt; (</span><span class="si">{</span><span class="nv">$current</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nv">$sql_cnt</span><span class="si">}</span><span class="s2">)[</span><span class="si">{</span><span class="nv">$percent</span><span class="si">}</span><span class="s2">%]&quot;</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">echo</span> <span class="nx">PHP_EOL</span><span class="p">;</span>
+
+    <span class="k">return</span> <span class="nv">$effects_cnt</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+
+<p>执行效果：</p>
+<p><img alt="执行效果图" src="../static/img/mysql_convert_column.png" /></p>
+					<hr>
+				</section>
+				<section style="font-weight: bold;margin-bottom: 2em;">
+					
+					
+					<a rel="next" href="/TerminalBlog/gui/post/有趣的preg_replace.html" class="a-hover" style="float:right">有趣的preg_replace<i class="icon-double-angle-right"></i></a>
+					
+				</section>
+				<section>
+					<div class="ds-thread" data-thread-key="2016-04-25 11:47" data-title="mysql批量修改字段名为小写" data-url="post/mysql批量修改字段名为小写.html"></div>
+				</section>
+			</article>
+		</div>
+	</section>
+</main>
+
+<script type="text/javascript">
+	var duoshuoQuery = {short_name:"terminalblog"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+</script>
+
+<footer>
+	<div class="container">
+		<a href="#">shellvon</a>|<a href="/TerminalBlog">Terminal</a>|<a href="http://richbray.me/frap/">Thanks richbray.me/frap</a>
+	</div>
+</footer>
+<script type="text/javascript" src="http://tajs.qq.com/stats?sId=38629263" charset="UTF-8"></script>
+</body>
+</html>
