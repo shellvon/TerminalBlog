@@ -22,16 +22,16 @@
 				<section>
 					<h3>前言</h3>
 <hr />
-<p>前同事的某个项目在把PHP的<code>error_reporting</code>开成E_ALL的时候，发现这种下标未定义的问题。我帮忙看了一下，发现其实是数据库里面有的字段是大写，有的是小写，最开始打算手动改，一看datbase的table我就蒙了，超过了80个表，字段就更多了。</p>
+<p>前同事的某个个人项目在把PHP的<code>error_reporting</code>开成E_ALL的时候，发现各种下标未定义的问题。我帮忙看了一下，发现其实是数据库里面有的字段是大写，有的是小写(貌似是之前在windows...)，最开始打算手动改，一看datbase的table我就蒙了，超过了80个表，字段就更多了。</p>
 <h3>基础</h3>
-<hr />
 <ol>
 <li>MySQL(版本大于5.0)/SQLite/Postgres这种数据库会利用<code>information_schema</code>来保存自己的元数据信息。</li>
 <li>Oracle这种数据库没有,但是会有<code>USER_TAB_COLS</code>,<code>ALL_TAB_COLS</code>等。</li>
 <li>修改字段大小写的SQL为:<code>ALTER TABLE tabl_ename CHANGE old_column_name new_column_name type extra, isnullable,charset</code>.(<code>charset_set_name</code>不要的话我在后面测试的时候发现某些中文是无法<code>alter</code>的(UTF8的字节数问题))</li>
+<li>MySQL columname 不区分大小写:http://stackoverflow.com/questions/2009005/are-column-and-table-name-case-sensitive-in-mysql</li>
+<li>PDO强制列名小写 =&gt; http://php.net/manual/zh/pdo.setattribute.php</li>
 </ol>
 <h3>构造SQL查询</h3>
-<hr />
 <p>首先,为了获取alter需要的数据信息,我们得写如下SQL:</p>
 <div class="codehilite"><pre><span class="k">SELECT</span> <span class="k">column_name</span><span class="p">,</span><span class="n">column_type</span><span class="p">,</span><span class="n">extra</span><span class="p">,</span> <span class="n">is_nullable</span><span class="p">,</span> <span class="k">character_set_name</span> <span class="k">FROM</span> <span class="n">information_schema</span><span class="p">.</span><span class="n">columns</span> <span class="k">WHERE</span> <span class="n">table_schema</span> <span class="o">=</span> <span class="s1">&#39;dbname&#39;</span><span class="p">.</span>
 </pre></div>
@@ -50,11 +50,11 @@
 <p>'ALTER TABLE' + table_name + 'CHANGE' + column_name + new_columname + type + charset + is_nullable</p>
 </blockquote>
 <p>所以最后的现在的SQL像这样子</p>
-<div class="codehilite"><pre><span class="k">SELECT</span>  <span class="n">CONCAT</span><span class="p">(</span><span class="s1">&#39;ALTER TABLE &#39;</span><span class="p">,</span> <span class="k">table_name</span><span class="p">,</span> <span class="s1">&#39; CHANGE &#39;</span><span class="p">,</span> <span class="k">column_name</span><span class="p">,</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="k">LOWER</span><span class="p">(</span><span class="k">column_name</span><span class="p">),</span> <span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">column_type</span><span class="p">,</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="k">CASE</span> <span class="k">WHEN</span> <span class="k">character_set_name</span><span class="o">!=</span><span class="s1">&#39;&#39;</span> <span class="k">THEN</span> <span class="n">CONCAT</span><span class="p">(</span><span class="s1">&#39;CHARACTER SET &#39;</span><span class="p">,</span> <span class="k">character_set_name</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39; &#39;</span> <span class="k">END</span><span class="p">,</span> <span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">is_nullable</span> <span class="o">=</span> <span class="s1">&#39;YES&#39;</span> <span class="k">THEN</span> <span class="s1">&#39; NULL&#39;</span> <span class="k">ELSE</span> <span class="s1">&#39; NOT NULL&#39;</span> <span class="k">END</span><span class="p">,</span> <span class="s1">&#39;;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">new_sql</span> <span class="k">FROM</span> <span class="n">information_schema</span><span class="p">.</span><span class="n">columns</span> <span class="k">WHERE</span> <span class="n">table_schema</span> <span class="o">=</span> <span class="s1">&#39;dbname&#39;</span><span class="p">;</span>
+<div class="codehilite"><pre><span class="k">SELECT</span>  <span class="n">CONCAT</span><span class="p">(</span><span class="s1">&#39;ALTER TABLE &#39;</span><span class="p">,</span> <span class="k">table_name</span><span class="p">,</span> <span class="s1">&#39; CHANGE &#39;</span><span class="p">,</span> <span class="k">column_name</span><span class="p">,</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="k">LOWER</span><span class="p">(</span><span class="k">column_name</span><span class="p">),</span> <span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">column_type</span><span class="p">,</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="k">CASE</span> <span class="k">WHEN</span> <span class="k">character_set_name</span><span class="o">!=</span><span class="s1">&#39;&#39;</span> <span class="k">THEN</span> <span class="n">CONCAT</span><span class="p">(</span><span class="s1">&#39;CHARACTER SET &#39;</span><span class="p">,</span> <span class="k">character_set_name</span><span class="p">)</span> <span class="k">ELSE</span> <span class="s1">&#39; &#39;</span> <span class="k">END</span><span class="p">,</span> <span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">is_nullable</span> <span class="o">=</span> <span class="s1">&#39;YES&#39;</span> <span class="k">THEN</span> <span class="s1">&#39; NULL&#39;</span> <span class="k">ELSE</span> <span class="s1">&#39; NOT NULL&#39;</span> <span class="k">END</span><span class="p">,</span> <span class="s1">&#39;;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">new_sql</span> <span class="k">FROM</span> <span class="n">information_schema</span><span class="p">.</span><span class="n">columns</span> <span class="k">WHERE</span> <span class="n">table_schema</span> <span class="o">=</span> <span class="s1">&#39;dbname&#39;</span><span class="p">;</span>
 </pre></div>
 
 
-<p>仔细看看现在生成出来的SQL,似乎有些alter是无用的，因为原来字段本来就是小写。所以可以在where后面多加一个限制：<code>AND column_name != LOWER(column_name)</code>
+<p>仔细看看现在生成出来的SQL,似乎有些alter是无用的，因为原来字段本来就是小写。所以可以在where后面多加一个限制：<code>AND BINARY column_name != BINARY LOWER(column_name)</code> (MySQL columname 不区分大小写)
 现在生成出来的new_sql大概就是这样子：</p>
 <div class="codehilite"><pre><span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">tags</span> <span class="n">CHANGE</span> <span class="n">expiration</span> <span class="n">expiration</span> <span class="nb">int</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="n">unsigned</span>   <span class="k">NOT</span> <span class="k">NULL</span><span class="p">;</span>
 </pre></div>
@@ -73,8 +73,7 @@
 <span class="c1">// please run this script after you dumped the database..</span>
 <span class="c1">// command to dumpload =&gt; mysqldump -u root -p fmscms &gt; back.sql</span>
 <span class="c1">// Automatically converted MySQL columns name to lower case.</span>
-<span class="c1">//</span>
-<span class="c1">//</span>
+<span class="c1">// </span>
 <span class="k">if</span> <span class="p">(</span><span class="nx">PHP_SAPI</span> <span class="o">!==</span> <span class="s1">&#39;cli&#39;</span><span class="p">)</span> <span class="p">{</span>
     <span class="k">exit</span><span class="p">(</span><span class="s1">&#39;This file only supported to run in command line&#39;</span><span class="p">);</span>
 <span class="p">}</span>
@@ -99,10 +98,10 @@
     <span class="k">echo</span> <span class="s1">&#39;optional paramters:&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
     <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> -h the host you want to connect.(default is &#39;127.0.0.1&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
     <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> -u the username for login the database.(default is &#39;root&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
-    <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> -p the password for ligin the database.(default is &#39;&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> -p the password for login the database.(default is &#39;&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
     <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> -P the port number to use for connect the database.(default is &#39;3306&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
     <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2"> --charset the charset.(default is &#39;utf8&#39;)&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
-    <span class="k">echo</span> <span class="nx">PHP_EOL</span><span class="o">.</span><span class="s1">&#39;Waring: THIS SCRIPT IS VERY DANGEROUS!!!&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">echo</span> <span class="nx">PHP_EOL</span><span class="o">.</span><span class="s1">&#39;Warnings: THIS SCRIPT IS VERY DANGEROUS!!!&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
 <span class="p">}</span>
 
 <span class="k">function</span> <span class="nf">parseConfig</span><span class="p">(</span><span class="nv">$default_cfg</span><span class="p">)</span>
@@ -142,21 +141,32 @@
 
 <span class="k">function</span> <span class="nf">toLowerCaseColumnName</span><span class="p">(</span><span class="nv">$pdo</span><span class="p">,</span> <span class="nv">$dbname</span><span class="p">)</span>
 <span class="p">{</span>
+    <span class="c1">// http://stackoverflow.com/questions/11312433/how-to-alter-a-column-and-change-the-default-value</span>
+    <span class="c1">// ALTER TABLE foobar_data CHANGE COLUMN col col VARCHAR(255) NOT NULL DEFAULT &#39;{}&#39;;</span>
+    <span class="c1">//</span>
+    <span class="c1">// http://stackoverflow.com/questions/10346728/string-compare-exact-in-query-mysql</span>
     <span class="c1">// ugly sql.</span>
     <span class="nv">$result</span> <span class="o">=</span> <span class="nv">$pdo</span><span class="o">-&gt;</span><span class="na">query</span><span class="p">(</span><span class="s2">&quot;SELECT CONCAT(</span>
 <span class="s2">        &#39;ALTER TABLE &#39;, table_name,</span>
 <span class="s2">        &#39; CHANGE &#39;, column_name, &#39; &#39;,</span>
 <span class="s2">        LOWER(column_name), &#39; &#39;, column_type, &#39; &#39;,</span>
 <span class="s2">        CASE when CHARACTER_SET_NAME != &#39;&#39; THEN CONCAT(&#39;CHARACTER SET &#39;, CHARACTER_SET_NAME) else &#39; &#39; END,  &#39; &#39;, extra,</span>
-<span class="s2">        CASE WHEN IS_NULLABLE = &#39;YES&#39; THEN  &#39; NULL&#39; ELSE &#39; NOT NULL&#39; END, &#39;;&#39;) AS new_sql</span>
+<span class="s2">        CASE WHEN IS_NULLABLE = &#39;YES&#39; THEN  &#39; NULL&#39; ELSE &#39; NOT NULL&#39; END,</span>
+<span class="s2">        CASE WHEN column_default is null THEN &#39; &#39; ELSE CONCAT(&#39; DEFAULT \&#39;&#39;, column_default, &#39;\&#39;&#39;) END,</span>
+<span class="s2">        &#39;;&#39;) AS new_sql</span>
 <span class="s2">        FROM information_schema.columns</span>
 <span class="s2">        WHERE table_schema = &#39;</span><span class="si">{</span><span class="nv">$dbname</span><span class="si">}</span><span class="s2">&#39;</span>
-<span class="s2">        AND column_name != LOWER(column_name)</span>
+<span class="s2">        #AND BINARY column_name != BINARY LOWER(column_name)</span>
 <span class="s2">        AND data_type IN (&#39;char&#39;, &#39;varchar&#39;,&#39;INT&#39;, &#39;TINYINT&#39;, &#39;datetime&#39;,&#39;text&#39;,&#39;double&#39;,&#39;decimal&#39;)</span>
 <span class="s2">        ORDER BY new_sql;&quot;</span><span class="p">);</span>
-    <span class="nv">$sql_lst</span> <span class="o">=</span> <span class="nv">$result</span><span class="o">-&gt;</span><span class="na">fetchAll</span><span class="p">();</span>
-    <span class="nv">$sql_cnt</span> <span class="o">=</span> <span class="nb">count</span><span class="p">(</span><span class="nv">$sql_lst</span><span class="p">);</span>
+
+    <span class="nv">$all_sql_with_key</span> <span class="o">=</span> <span class="nv">$result</span><span class="o">-&gt;</span><span class="na">fetchAll</span><span class="p">();</span>
+    <span class="nv">$sql_cnt</span> <span class="o">=</span> <span class="nb">count</span><span class="p">(</span><span class="nv">$all_sql_with_key</span><span class="p">);</span>
     <span class="k">echo</span>   <span class="s1">&#39;Got &#39;</span><span class="o">.</span><span class="nv">$sql_cnt</span><span class="o">.</span><span class="s1">&#39; SQL.&#39;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$sql_cnt</span> <span class="o">===</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">echo</span> <span class="s2">&quot;No need to alter, exit!&quot;</span><span class="p">;</span>
+        <span class="k">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+    <span class="p">}</span>
     <span class="k">while</span> <span class="p">(</span><span class="k">true</span><span class="p">)</span> <span class="p">{</span>
         <span class="nv">$line</span> <span class="o">=</span> <span class="nb">readline</span><span class="p">(</span><span class="s1">&#39;Do you want to continue, it\&#39;s very dangerous(y/n):&#39;</span><span class="p">);</span>
         <span class="nv">$line</span> <span class="o">=</span> <span class="nb">strtolower</span><span class="p">(</span><span class="nv">$line</span><span class="p">);</span>
@@ -174,23 +184,39 @@
     <span class="nv">$current</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
     <span class="nv">$sql_cnt</span> <span class="o">=</span> <span class="nv">$sql_cnt</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="o">?</span> <span class="nv">$sql_cnt</span> <span class="o">:</span> <span class="mi">1</span><span class="p">;</span>
     <span class="nv">$effects_cnt</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-    <span class="k">foreach</span> <span class="p">(</span><span class="nv">$sql_lst</span> <span class="k">as</span> <span class="nv">$row</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nv">$sql_lst</span> <span class="o">=</span> <span class="k">array</span><span class="p">();;</span>
+    <span class="k">foreach</span> <span class="p">(</span><span class="nv">$all_sql_with_key</span> <span class="k">as</span> <span class="nv">$row</span><span class="p">)</span> <span class="p">{</span>
         <span class="nv">$sql</span> <span class="o">=</span> <span class="nv">$row</span><span class="p">[</span><span class="s1">&#39;new_sql&#39;</span><span class="p">];</span>
-        <span class="nv">$count</span> <span class="o">=</span> <span class="nv">$pdo</span><span class="o">-&gt;</span><span class="na">exec</span><span class="p">(</span><span class="nv">$sql</span><span class="p">);</span>
-        <span class="nv">$effects_cnt</span> <span class="o">+=</span> <span class="nv">$count</span><span class="p">;</span>
+        <span class="nv">$pdo</span><span class="o">-&gt;</span><span class="na">exec</span><span class="p">(</span><span class="nv">$sql</span><span class="p">);</span>
+        <span class="nv">$sql_lst</span><span class="p">[]</span> <span class="o">=</span> <span class="nv">$sql</span><span class="p">;</span>
         <span class="o">++</span><span class="nv">$current</span><span class="p">;</span>
         <span class="nv">$percent</span> <span class="o">=</span> <span class="nb">number_format</span><span class="p">(</span><span class="nv">$current</span> <span class="o">*</span> <span class="mf">100.</span> <span class="o">/</span> <span class="nv">$sql_cnt</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">);</span>
         <span class="k">echo</span> <span class="s2">&quot;</span><span class="se">\r</span><span class="s2">Progress =&gt; (</span><span class="si">{</span><span class="nv">$current</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nv">$sql_cnt</span><span class="si">}</span><span class="s2">)[</span><span class="si">{</span><span class="nv">$percent</span><span class="si">}</span><span class="s2">%]&quot;</span><span class="p">;</span>
+
     <span class="p">}</span>
     <span class="k">echo</span> <span class="nx">PHP_EOL</span><span class="p">;</span>
-
-    <span class="k">return</span> <span class="nv">$effects_cnt</span><span class="p">;</span>
+    <span class="nb">file_put_contents</span><span class="p">(</span><span class="s1">&#39;exec.sql&#39;</span><span class="p">,</span> <span class="nb">implode</span><span class="p">(</span><span class="nx">PHP_EOL</span><span class="p">,</span> <span class="nv">$sql_lst</span><span class="p">)</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">,</span> <span class="nx">FILE_APPEND</span><span class="p">);</span>
+    <span class="k">return</span> <span class="nv">$sql_cnt</span><span class="p">;</span>
 <span class="p">}</span>
+
+<span class="c1">// GOGOGOGO!!!!!!</span>
+<span class="nv">$config</span> <span class="o">=</span> <span class="nx">parseConfig</span><span class="p">(</span><span class="nv">$default_cfg</span><span class="p">);</span>
+<span class="nv">$db</span> <span class="o">=</span> <span class="nx">getDatabase</span><span class="p">(</span><span class="nv">$config</span><span class="p">[</span><span class="s1">&#39;dsn&#39;</span><span class="p">],</span> <span class="nv">$config</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">],</span> <span class="nv">$config</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">],</span> <span class="k">null</span><span class="p">);</span>
+<span class="nv">$result</span> <span class="o">=</span> <span class="nx">toLowerCaseColumnName</span><span class="p">(</span><span class="nv">$db</span><span class="p">,</span> <span class="nv">$config</span><span class="p">[</span><span class="s1">&#39;dbname&#39;</span><span class="p">]);</span>
+
+<span class="k">echo</span> <span class="s2">&quot;</span><span class="si">{</span><span class="nv">$result</span><span class="si">}</span><span class="s2"> effects!!!!!&quot;</span><span class="o">.</span><span class="nx">PHP_EOL</span><span class="p">;</span>
 </pre></div>
 
 
-<p>执行效果：</p>
+<p>执行效果(截图中有些typo error,上述脚本修复了)：</p>
 <p><img alt="执行效果图" src="../static/img/mysql_convert_column.png" /></p>
+<h3>结语</h3>
+<p>也许你会说，既然应用级别可以设置属性不区分大小写，Mysql默认也可以不区分，那么为什么还要写这个脚本呢？</p>
+<ul>
+<li>因为强迫症在命运风格上表示不能接受，所以第一反应是修改大小写。</li>
+<li>因为之前我傻呀....没想到APP级别去设置属性。。。</li>
+</ul>
+<p><strong>写代码一定要注意大小写!!!!!!</strong></p>
 					<hr>
 				</section>
 				<section style="font-weight: bold;margin-bottom: 2em;">

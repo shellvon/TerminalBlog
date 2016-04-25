@@ -6,7 +6,8 @@
 1. MySQL(版本大于5.0)/SQLite/Postgres这种数据库会利用`information_schema`来保存自己的元数据信息。
 2. Oracle这种数据库没有,但是会有`USER_TAB_COLS`,`ALL_TAB_COLS`等。
 3. 修改字段大小写的SQL为:`ALTER TABLE tabl_ename CHANGE old_column_name new_column_name type extra, isnullable,charset`.(`charset_set_name`不要的话我在后面测试的时候发现某些中文是无法`alter`的(UTF8的字节数问题))
-
+4. MySQL columname 不区分大小写:http://stackoverflow.com/questions/2009005/are-column-and-table-name-case-sensitive-in-mysql
+5. PDO强制列名小写 => http://php.net/manual/zh/pdo.setattribute.php
 
 ###构造SQL查询
 首先,为了获取alter需要的数据信息,我们得写如下SQL:
@@ -32,10 +33,10 @@
 所以最后的现在的SQL像这样子
 
     :::sql
-    SELECT  CONCAT('ALTER TABLE ', table_name, ' CHANGE ', column_name,' ', LOWER(column_name), ' ', column_type,' ', CASE WHEN character_set_name!='' THEN CONCAT('CHARACTER SET ', character_set_name) else ' ' END, CASE WHEN is_nullable = 'YES' THEN ' NULL' ELSE ' NOT NULL' END, ';') as new_sql FROM information_schema.columns WHERE table_schema = 'dbname';
+    SELECT  CONCAT('ALTER TABLE ', table_name, ' CHANGE ', column_name,' ', LOWER(column_name), ' ', column_type,' ', CASE WHEN character_set_name!='' THEN CONCAT('CHARACTER SET ', character_set_name) ELSE ' ' END, CASE WHEN is_nullable = 'YES' THEN ' NULL' ELSE ' NOT NULL' END, ';') as new_sql FROM information_schema.columns WHERE table_schema = 'dbname';
 
 
-仔细看看现在生成出来的SQL,似乎有些alter是无用的，因为原来字段本来就是小写。所以可以在where后面多加一个限制：`AND column_name != LOWER(column_name)`
+仔细看看现在生成出来的SQL,似乎有些alter是无用的，因为原来字段本来就是小写。所以可以在where后面多加一个限制：`AND BINARY column_name != BINARY LOWER(column_name)` (MySQL columname 不区分大小写)
 现在生成出来的new_sql大概就是这样子：
 
     :::sql
@@ -57,8 +58,7 @@
     // please run this script after you dumped the database..
     // command to dumpload => mysqldump -u root -p fmscms > back.sql
     // Automatically converted MySQL columns name to lower case.
-    //
-    //
+    // 
     if (PHP_SAPI !== 'cli') {
         exit('This file only supported to run in command line');
     }
@@ -83,10 +83,10 @@
         echo 'optional paramters:'.PHP_EOL;
         echo "\t -h the host you want to connect.(default is '127.0.0.1')".PHP_EOL;
         echo "\t -u the username for login the database.(default is 'root')".PHP_EOL;
-        echo "\t -p the password for ligin the database.(default is '')".PHP_EOL;
+        echo "\t -p the password for login the database.(default is '')".PHP_EOL;
         echo "\t -P the port number to use for connect the database.(default is '3306')".PHP_EOL;
         echo "\t --charset the charset.(default is 'utf8')".PHP_EOL;
-        echo PHP_EOL.'Waring: THIS SCRIPT IS VERY DANGEROUS!!!'.PHP_EOL;
+        echo PHP_EOL.'Warnings: THIS SCRIPT IS VERY DANGEROUS!!!'.PHP_EOL;
     }
 
     function parseConfig($default_cfg)
@@ -126,21 +126,32 @@
 
     function toLowerCaseColumnName($pdo, $dbname)
     {
+        // http://stackoverflow.com/questions/11312433/how-to-alter-a-column-and-change-the-default-value
+        // ALTER TABLE foobar_data CHANGE COLUMN col col VARCHAR(255) NOT NULL DEFAULT '{}';
+        //
+        // http://stackoverflow.com/questions/10346728/string-compare-exact-in-query-mysql
         // ugly sql.
         $result = $pdo->query("SELECT CONCAT(
-    		'ALTER TABLE ', table_name,
-    		' CHANGE ', column_name, ' ',
-    		LOWER(column_name), ' ', column_type, ' ',
-    		CASE when CHARACTER_SET_NAME != '' THEN CONCAT('CHARACTER SET ', CHARACTER_SET_NAME) else ' ' END,  ' ', extra,
-    		CASE WHEN IS_NULLABLE = 'YES' THEN  ' NULL' ELSE ' NOT NULL' END, ';') AS new_sql
-    		FROM information_schema.columns
-    		WHERE table_schema = '{$dbname}'
-    		AND column_name != LOWER(column_name)
-    		AND data_type IN ('char', 'varchar','INT', 'TINYINT', 'datetime','text','double','decimal')
-    		ORDER BY new_sql;");
-        $sql_lst = $result->fetchAll();
-        $sql_cnt = count($sql_lst);
+            'ALTER TABLE ', table_name,
+            ' CHANGE ', column_name, ' ',
+            LOWER(column_name), ' ', column_type, ' ',
+            CASE when CHARACTER_SET_NAME != '' THEN CONCAT('CHARACTER SET ', CHARACTER_SET_NAME) else ' ' END,  ' ', extra,
+            CASE WHEN IS_NULLABLE = 'YES' THEN  ' NULL' ELSE ' NOT NULL' END,
+            CASE WHEN column_default is null THEN ' ' ELSE CONCAT(' DEFAULT \'', column_default, '\'') END,
+            ';') AS new_sql
+            FROM information_schema.columns
+            WHERE table_schema = '{$dbname}'
+            #AND BINARY column_name != BINARY LOWER(column_name)
+            AND data_type IN ('char', 'varchar','INT', 'TINYINT', 'datetime','text','double','decimal')
+            ORDER BY new_sql;");
+
+        $all_sql_with_key = $result->fetchAll();
+        $sql_cnt = count($all_sql_with_key);
         echo   'Got '.$sql_cnt.' SQL.'.PHP_EOL;
+        if ($sql_cnt === 0) {
+            echo "No need to alter, exit!";
+            exit(0);
+        }
         while (true) {
             $line = readline('Do you want to continue, it\'s very dangerous(y/n):');
             $line = strtolower($line);
@@ -158,19 +169,40 @@
         $current = 0;
         $sql_cnt = $sql_cnt > 0 ? $sql_cnt : 1;
         $effects_cnt = 0;
-        foreach ($sql_lst as $row) {
+        $sql_lst = array();;
+        foreach ($all_sql_with_key as $row) {
             $sql = $row['new_sql'];
-            $count = $pdo->exec($sql);
-            $effects_cnt += $count;
+            $pdo->exec($sql);
+            $sql_lst[] = $sql;
             ++$current;
             $percent = number_format($current * 100. / $sql_cnt, 2, '.', '');
             echo "\rProgress => ({$current}/{$sql_cnt})[{$percent}%]";
+
         }
         echo PHP_EOL;
-
-        return $effects_cnt;
+        file_put_contents('exec.sql', implode(PHP_EOL, $sql_lst).PHP_EOL, FILE_APPEND);
+        return $sql_cnt;
     }
 
-执行效果：
+    // GOGOGOGO!!!!!!
+    $config = parseConfig($default_cfg);
+    $db = getDatabase($config['dsn'], $config['username'], $config['password'], null);
+    $result = toLowerCaseColumnName($db, $config['dbname']);
+
+    echo "{$result} effects!!!!!".PHP_EOL;
+
+
+执行效果(截图中有些typo error,上述脚本修复了)：
 
 ![执行效果图](../static/img/mysql_convert_column.png)
+
+
+
+###结语
+
+也许你会说，既然应用级别可以设置属性不区分大小写，Mysql默认也可以不区分，那么为什么还要写这个脚本呢？
+
++ 因为强迫症在命运风格上表示不能接受，所以第一反应是修改大小写。
++ 因为之前我傻呀....没想到APP级别去设置属性。。。
+
+**写代码一定要注意大小写!!!!!!**
