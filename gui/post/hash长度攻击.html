@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<link rel="icon" href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA30lEQVQ4jc2TQQqDMBBFf0IPYdciqCC4sdtepmfoIXqSXqPbgiCYRS4geAj9000TolVL200DHxIm8yYznwA/LgUAVVUdReSilDq4gIisiuR9GIaztfa2e96/KqUil7gFIAkROWitrwD2DhC9q7oAiQBg90HVlzMAaJdIEiRR17XfO4XxUBOAU1mWaJpmMWEO9ID5haIo0LbtW8hkBmFvxhjkeQ6SsNZ6z+M4nrzWA8IhGWOQZZkHJkmyOtxFQJqmmw7MARoAxnHstnpdURe6cCLZb1k2c6Anefri6/zjegA6Y8N7iQVuMQAAAABJRU5ErkJggg==">
+	<meta name="description" content="">
+	<link rel="stylesheet" type="text/css" href="/TerminalBlog/gui/static/css/style.css">
+	<title>von's blog</title>
+</head>
+<body>
+<div class="top-strip"></div>
+
+<main class="content">
+	<section class="container">
+		<div class="row-fluid">
+			<article class="home-icon">
+				<a href="/TerminalBlog/gui"><i class="icon-home"></i></a>
+			</article>
+			<article class="post">
+				<h5>2016-04-27 16:04</h5>
+				<h2>hash长度攻击</h2>
+				<section>
+					<h3>题目描述：</h3>
+<hr />
+<p><a href="http://www.shiyanbar.com/ctf/1848">http://www.shiyanbar.com/ctf/1848</a></p>
+<h3>前言</h3>
+<hr />
+<p>作为新人，本人之前是不知道<strong><a href="https://www.wikiwand.com/en/Length_extension_attack">哈希长度扩展攻击</a></strong>的，当做到这道题的时候Google了一下发现这个概念，即使看了维基百科的描述也发现没有什么过多的资料解释这种攻击方式成功的缘由。但是强烈的好奇心驱使我继续Google下去，就像发现了新大陆一样一直往前走，一口气看了这篇文章。</p>
+<ul>
+<li><a href="https://blog.skullsecurity.org/2012/everything-you-need-to-know-about-hash-length-extension-attacks">Everything you need to know about hash length extension attacks</a></li>
+</ul>
+<p>经过仔细的阅读我发现我看不懂这里面专业的英文单词(CET4都没过的。。),于是我想先从简单的开始，直接用MD5算法当样例，一步一步的看下去，RFC看起来我会跪的，于是我Google了一篇中文的:</p>
+<ul>
+<li><a href="http://noalgo.info/600.html">MD5算法原理及实现</a></li>
+</ul>
+<p>跟着算法一遍看一遍想。大约花了2～3小时我才成功阅读和理解到文章中攻击手段形成的缘由。
+然后我要确保我自己确实没有理解错，我继续Google了一下文章,找到了这些资源：</p>
+<ul>
+<li><a href="http://netifera.com/research/flickr_api_signature_forgery.pdf">http://netifera.com/research/flickr_api_signature_forgery.pdf</a></li>
+<li><a href="http://www.freebuf.com/articles/web/31756.html">科普哈希长度扩展攻击</a></li>
+<li><a href="http://www.freebuf.com/articles/web/69264.html">深入理解hash长度扩展攻击（sha1为例)</a></li>
+</ul>
+<h3>正文</h3>
+<hr />
+<h4>1.基础</h4>
+<p>简单的讲，<strong>哈希长度扩展攻击</strong> 产生的原因来自于这些hash函数要分块去做多次计算，上一次的计算会作为下一次计算的输入。而分块必须得均分，所以涉及到当原始消息长度不够要补全(<code>padding</code>)的事情。因为绝大多数的消息都不可能把长度恰好弄成hash算法要求的整数倍数长度。</p>
+<p>padding的时候，先填充一个<code>1</code>,然后后面给无数个<code>0</code>,用16进制来说，就是先给一个<code>0x80</code>,后面有无数个<code>0x00</code>.不同的hash算法有不同的块大小，而padding的0的多少需要这些hash算法决定。
+举例来说：MD5算法要求:加密的原始字符串要使其位长对512(64字节)求余的果等于448(56字节)。因此，信息的位长将被扩展至<code>N*512+448</code>，N为一个非负整数，N可以是零。为什么要用448呢？因为MD5算法(SHA1也一样，我不确认是否所有hash算法都是如此)要求最后的8字节(64bit)要保存填充前信息长度。这样可以保证信息的位长=<code>N*512+448+64=(N+1)*512</code>，即长度恰好是512的整数倍.</p>
+<p>数学定义就是:</p>
+<blockquote>
+<p>length(raw_msg)%64 == 56</p>
+</blockquote>
+<p>以上文提到的<a href="https://blog.skullsecurity.org/2012/everything-you-need-to-know-about-hash-length-extension-attacks">Everything you need to know about hash length extension attacks</a>提到的例子来讲：</p>
+<p>原始信息长度为<code>length("secretdata") = 10</code>;所以我们还需要<code>46</code>字节padding的1和0，然后加上8字节的字符串长度<code>10字节＝&gt;80bit=&gt;0x50</code>. 最后结构就是文中提到的这个样子:</p>
+<div class="codehilite"><pre><span class="mo">0000</span>  <span class="mi">73</span> <span class="mi">65</span> <span class="mi">63</span> <span class="mi">72</span> <span class="mi">65</span> <span class="mi">74</span> <span class="mi">64</span> <span class="mi">61</span> <span class="mi">74</span> <span class="mi">61</span> <span class="mi">80</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span>  <span class="n">secretdata</span><span class="o">......</span>
+<span class="mo">0010</span>  <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span>  <span class="o">................</span>
+<span class="mo">0020</span>  <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span>  <span class="o">................</span>
+<span class="mo">0030</span>  <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mi">50</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span> <span class="mo">00</span>  <span class="o">........</span><span class="n">P</span><span class="o">.......</span>
+</pre></div>
+
+
+<h4>2.如何攻击呢？</h4>
+<p>由于上面我们已经补全过数据了，现在已经是完整的块了，当我们继续在后面补充数据的时候，他在分块的时候就会直接帮我们把前面的数据分块，这部分会被hash算法先计算，由于算法初始值相同，计算的顺序相同，这一块的数据计算的结果就一定是固定的，也就是在我们没有补充数据之前的数据的hash结果，那么只要当我们后面补充的数据用这个hash结果的状态继续往后面执行，计算出来的evil_hash也一定会和服务器端hash(secret+“填充数据”+“任意可控数据”)的最终结果一样。从而可以导致该攻击。</p>
+<p>更简单的说法是：攻击者的哈希计算过程，相当于从服务器计算过程的一半紧接着进行下去。</p>
+<p>攻击流程：</p>
+<ul>
+<li>服务器端：</li>
+<li>hash(secret+msg) =&gt;一系列计算 hash_value</li>
+<li>攻击者:</li>
+<li>在知道secret+msg多长的情况下可以补全为一个完整的块，从而补全的这个块计算出来的结果我们可以拿到该状态，然后加入可控的邪恶数据，再利用原来服务器的hash_value来设置当前的hash状态，从而继续执行下去。</li>
+</ul>
+<p>这个过程中，攻击者完全不用知道secret是什么，他只用知道长度，就可以预测出你的下一个hash结果。因为他知道你的计算状态。。。</p>
+<h4>3.额外需要知道的事情</h4>
+<ul>
+<li>通常来讲，攻击者不会知道服务器上原始secret的长度，所以可能需要枚举secret的长度直到成功</li>
+<li>通常，这类工具存在于URL GET/POST的请求参数中。所以你需要知道还有一种攻击方式是：HTTP参数污染（HPP)<ul>
+<li>HTTP中当参数出现同名的时候，比如<code>index.php?a=1&amp;a=2</code>;大多数语言都是后面的覆盖前面的。所以利用hash长度攻击的时候，直接在参数后面加入同名参数以达到构造恶意内容是可能的。</li>
+<li>题外话，PHP在处理<code>Cookie</code>的时候，同名时是取的前面的那个。但是Python的<code>Tornado</code>是取的后面的,参考:<a href="https://www.leavesongs.com/HTML/zhihu-xss-worm.html">知乎某处XSS+刷粉超详细漏洞技术分析</a>。</li>
+<li>更多的关于HPP的资料可以参考:<a href="https://www.owasp.org/images/b/ba/AppsecEU09_CarettoniDiPaola_v0.8.pdf">HTTP Parameter Pollution</a></li>
+</ul>
+</li>
+</ul>
+<h3>攻击工具</h3>
+<ul>
+<li><a href="https://github.com/bwall/HashPump">https://github.com/bwall/HashPump</a></li>
+<li><a href="https://github.com/iagox86/hash_extender">https://github.com/iagox86/hash_extender</a></li>
+</ul>
+<h3>本题答案</h3>
+<hr />
+<ol>
+<li>修改cookie的source可以看见源代码。</li>
+<li><code>hashpump -s 571580b26c65f306376d4f64e53cb5c7 -d adminadmin -a shellvon -k 15</code></li>
+<li>修改对应的cookie提交用户名和密码即可。</li>
+</ol>
+<hr />
+<p>本博客内容来自我之前在<a href="https://github.com/CTF-Thanos">Thanos</a>团队中写的<a href="https://github.com/CTF-Thanos/ctf-record">writeup-record</a></p>
+					<hr>
+				</section>
+				<section style="font-weight: bold;margin-bottom: 2em;">
+					
+					
+					<a rel="next" href="/TerminalBlog/gui/post/mysql批量修改字段名为小写.html" class="a-hover" style="float:right">mysql批量修改字段名为小写<i class="icon-double-angle-right"></i></a>
+					
+				</section>
+				<section>
+					<div class="ds-thread" data-thread-key="2016-04-27 16:04" data-title="hash长度攻击" data-url="post/hash长度攻击.html"></div>
+				</section>
+			</article>
+		</div>
+	</section>
+</main>
+
+<script type="text/javascript">
+	var duoshuoQuery = {short_name:"terminalblog"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+</script>
+
+<footer>
+	<div class="container">
+		<a href="#">shellvon</a>|<a href="/TerminalBlog">Terminal</a>|<a href="http://richbray.me/frap/">Thanks richbray.me/frap</a>
+	</div>
+</footer>
+<script type="text/javascript" src="http://tajs.qq.com/stats?sId=38629263" charset="UTF-8"></script>
+</body>
+</html>
